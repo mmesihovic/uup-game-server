@@ -1,0 +1,39 @@
+{
+  "name": "uup-game-server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "prestart": "babel ./src --out-dir build",
+    "start": "node ./build/bin/www",
+    "startdev": "nodemon --exec babel-node ./src/bin/www",
+    "dbinit": "babel-node ./src/utils/db-init",
+    "dbServerInit": "babel-node ./src/utils/db-server-init"
+  },
+  "dependencies": {
+    "@babel/cli": "^7.10.5",
+    "@babel/core": "^7.11.4",
+    "@babel/node": "^7.10.5",
+    "@babel/plugin-transform-runtime": "^7.11.0",
+    "@babel/preset-env": "^7.11.0",
+    "@babel/register": "^7.10.5",
+    "@babel/runtime": "^7.11.2",
+    "cookie-parser": "^1.4.5",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "morgan": "^1.10.0",
+    "nodemon": "^2.0.4",
+    "npm-run-all": "^4.1.5",
+    "path": "^0.12.7",
+    "pg": "^8.3.2",
+    "pg-format": "^1.0.4",
+    "rimraf": "^3.0.2"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env"
+    ],
+    "plugins": [
+      "@babel/transform-runtime"
+    ]
+  }
+}
