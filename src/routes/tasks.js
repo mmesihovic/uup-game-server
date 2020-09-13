@@ -43,12 +43,9 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             try {
                 //Get current task ID 
                 let res = await client.query(currentTaskQuery, currentTaskQueryValues);
-                console.log(res.rows);
-
                 if(res.rows.length == 0 ) throw "Student " + student + " doesn't have active task in given assignment"; 
 
                 let currentTask_id = res.rows[0].task_id;
-                console.log("CURRENT TASK: ", currentTask_id);
                 //Get current task number, so we can select tasks which are after this one
                 let currentTaskNumberQuery = 'SELECT task_number FROM student_tasks WHERE student = $1 and assignment_id = $2 and task_id = $3;';
                 let currentTaskNumberQueryValues = [ student, assignment_id, currentTask_id];
@@ -56,7 +53,6 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                 res = await client.query(currentTaskNumberQuery, currentTaskNumberQueryValues);
 
                 let currentTaskNumber = res.rows[0].task_number;
-                console.log("TASK NUMBER: ", currentTaskNumber);
                 //Getting all next tasks with task_number higher than current which aren't turned in
                 let nextTaskQuery = `SELECT task_id, task_name
                                     FROM student_tasks
@@ -65,14 +61,12 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                 let nextTaskQueryValues = [ student, assignment_id, currentTaskNumber];
 
                 res = await client.query(nextTaskQuery, nextTaskQueryValues);
-                console.log("KOLIKO JOS TASKOVA IMA: ", res.rows.length);
                 if(res.rows.length == 0 ) {
                     // If there are no results, assignment is done, next task_id is -1
                     newTask = { id: -1, name: "Assignment finished", previous_task: currentTask_id };
                 } else {
                     // If there are results, take first next task (they are ordered) and return it
                     newTask = { id: res.rows[0].task_id, name: res.rows[0].task_name, previous_task: currentTask_id };
-                    console.log(newTask);
                 }
                 return newTask;
             } catch(e) {
@@ -99,10 +93,8 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             let category_id = res.rows[0].category_id;
             let replacementTasksQuery = 'SELECT id, task_name FROM tasks WHERE assignment_id=$1 AND category_id=$2 AND id<>$3;';
             res = await client.query(replacementTasksQuery, [ assignment_id, category_id, currentTask_id ]);
-            console.log("KOJE SMO TASKOVE DOBILI", res);
             let numberOfTasks = res.rows.length;
             let randomIndex = Math.floor(Math.random() * (numberOfTasks+1));
-            console.log("RANDOM INDEX:", randomIndex);
             return {
                 id: res.rows[randomIndex].id,
                 name: res.rows[randomIndex].task_name,
@@ -163,7 +155,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     let newTask = {};
     try {
         newTask = await getNextTask(replacementType, student, assignment_id, taskData);
-        console.log("NOVI TASK: ", newTask);
         currentTask_id = newTask.previous_task;
         let idValue = newTask.previous_task == -2 ? newTask.id : currentTask_id;
         // Daj kategoriju za current_task
@@ -184,7 +175,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                 maxPointsPct = taskCategories.rows[i].points_percent;
                 maxPoints = (Math.round(maxPointsPct * assignmentMaxPoints*100)/100).toFixed(2);
                 maxTokens = taskCategories.rows[i].tokens;
-                console.log("check 2");
                 break;
             }
         }
@@ -246,7 +236,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
             if(replacementType == 'second-chance') {
                 let res = await client.query(checkChainCallingQuery, [student, assignment_id]);
                 let check = res.rows.length && res.rows[0].return_id == -1;
-                console.log("PROVJERAVAMO DA LI JE CHAIN CALLING: ", check);
                 if(check) {
                     //If returning id is -1 it means that this is not a chain call, and we update the row with currentTask_id (so we can use it later)
                     let updateQuery = `UPDATE assignment_progress SET return_id = $1, status = 'In progress' WHERE student=$2 AND assignment_id=$3;`;
@@ -318,7 +307,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
         } catch (e) {
             //If any of the queries fail, db is rolled back.
             await client.query('ROLLBACK');
-            console.log("DID ROLLBACK");
             console.log(e.stack);
             throw "Internal database error.";
         } finally {
@@ -467,11 +455,9 @@ const validatePowerupUse = async (student, powerupType, assignment_id, currentTa
             if(!!data) {
                 let returnTaskQuery = 'SELECT task_id FROM student_tasks WHERE student = $1 AND assignment_id = $2 AND task_number = $3 AND task_name = $4;';
                 results = await client.query(returnTaskQuery, [student, assignment_id, data.task_number, data.task_name]);
-                console.log("RESULTS: ", results);
                 if(results.rows.length == 0)
                     return false;
                 let returnTask_id = results.rows[0].task_id;
-                console.log("returnTask_id: ", returnTask_id);
                 //Da li je iskoristio powerup
                 results = await client.query(usedPowerup, [student, returnTask_id, powerupType_id, assignment_id, currentTask_number]);
                 if(results.rows.length != 0)
@@ -611,7 +597,6 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
         task_number : req.body.task_number,
         task_name : req.body.task_name
     }
-    console.log(taskData);
     //Iskoristi powerup
     (async () => { 
         const client = await connectionPool.connect();
@@ -622,20 +607,17 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
             let results = await client.query(returnTaskQuery, [student, assignment_id, taskData.task_number, taskData.task_name]);
             if(results.rows.length == 0)
                 throw "Task with given number and name hasn't been assigned to student in given assignment.";
-            console.log("PASSED task_id CHECK");
             let newTask_id = results.rows[0].task_id;
             //Get powerupType_ID for Second Chance
             let powerupType_id;
             results = await client.query(`SELECT * from powerup_types WHERE name='Second Chance';`)
             if(results.rows.length == 0)
                 throw "Powerup 'Second Chance' not found.";
-            console.log("PASSED SECOND CHANCE TYPE CHECK");
             powerupType_id = results.rows[0].id;
             //Validate if powerup can be used
             let check = await validatePowerupUse(student, 'Second Chance', assignment_id, -1, taskData);
             if(!check)
                 throw "Powerup validation failed. Student either doesn't have powerup of this type or has already used it on this task so it cannot be used again.";  
-            console.log("PASSED VALIDATION CHECK");          
             let query = `UPDATE powerups SET used = TRUE, task_number = $1, task_id = $2, assignment_id = $3 
                     WHERE id = (SELECT id FROM powerups WHERE student = $4 AND type_id=$5 AND used=FALSE LIMIT 1)`;
             let values = [ taskData.task_number, newTask_id, assignment_id, student, powerupType_id]; 
@@ -682,7 +664,6 @@ router.get('/:id', (req, res) => {
         res.status(200).json(results.rows);
     })
     .catch( (error) => {
-        //console.log(error);
         res.status(500).json( {
             message: "Cannot get task with given id",
             reason: error
