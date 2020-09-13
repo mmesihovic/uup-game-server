@@ -1,7 +1,7 @@
 export const config = {
     host: 'localhost',
     user: 'postgres',
-    database: 'or-game',
+    database: 'uup-game',
     password: 'postgres',
     port: 5432,
     max: 20
