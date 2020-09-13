@@ -146,14 +146,14 @@ router.post('/:assignment_id/:student/start', (req,res) => {
     let student = req.params.student;
     let assignment_id = req.params.assignment_id;
     (async () => {
-        let tasks = await getTasks(assignment_id);
-        if(tasks.length == 0)
-            throw "Task selection failed.";
         let checkActiveStatus = await connectionPool.query("SELECT active FROM assignments WHERE id=$1", [assignment_id]);
         if(checkActiveStatus.rows.length == 0)
             throw "Assignment with given ID does not exist.";
         if(checkActiveStatus.rows[0].active == false)
             throw "Assignment with given ID is not active yet.";
+        let tasks = await getTasks(assignment_id);
+        if(tasks.length == 0)
+            throw "Task selection failed.";
         const client = await connectionPool.connect();
         try {
             await client.query('BEGIN');
