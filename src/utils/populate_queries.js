@@ -14,9 +14,9 @@ const powerupsValues = [ ['mmesihovic1', 1], ['mmesihovic1', 2], ['mmesihovic1',
 const tasks = (() => {
     let _tasks = [];
     let index = 0;
-    for(let i=1; i<=4;i++) {
+    for(let i=1; i<=10;i++) {
         for(let j=1;j<=3;j++) {
-            for(let k=1;k<=10;k++) {
+            for(let k=1;k<=20;k++) {
                 _tasks[index] = [ 'Task ' + (index+1), i, j, 'Hint ' + (index+1) ];
                 index++;
             }

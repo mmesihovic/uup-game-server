@@ -13,7 +13,7 @@ export const createTokensTable =
     'CREATE TABLE IF NOT EXISTS tokens (' +
         'id SERIAL PRIMARY KEY,' +
         'student VARCHAR NOT NULL,' +
-        'amount INT NOT NULL DEFAULT 10' +
+        'amount INT NOT NULL DEFAULT 0' +
     ');';
 
 export const createTaskCategoriesTable =
@@ -79,6 +79,7 @@ export const createCurrentTasksTable =
         'assignment_id INT NOT NULL,' +
         'task_id INT NOT NULL,' +
         'task_name VARCHAR NOT NULL,' +
+        'task_number SMALLINT NOT NULL,' +
         'CONSTRAINT fk_assignment_id FOREIGN KEY(assignment_id) REFERENCES assignments(id),' +
         'CONSTRAINT fk_task_id FOREIGN KEY(task_id) REFERENCES tasks(id)' +
     ');';

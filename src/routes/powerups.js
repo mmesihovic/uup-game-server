@@ -3,9 +3,9 @@ import { connectionPool } from '../utils/connection-pool';
 import format from 'pg-format';
 
 const router = express.Router();
-
+// Admin
 // Adds specific powerup to a student, by default powerup is unusued
-router.post('/:student/:powerupType', (req, res) => {
+router.post('/add/:student/:powerupType', (req, res) => {
     let student = req.params.student;
     let powerupType = req.params.powerupType;
     let query = format(`INSERT INTO powerups(student,type_id) VALUES %L`, [ [student, powerupType] ]) ;
@@ -22,13 +22,40 @@ router.post('/:student/:powerupType', (req, res) => {
         });
     })
   });
-
-  // Mass add svima
-
+// Admin
+// Adds a specific powerup to list of students provided
+router.post('/massAdd/:powerupType', (req, res) => {
+    let bodyKeys = Object.keys(req.body);
+    if(!bodyKeys.includes('students') || !Array.isArray(req.body['students'])) {
+        res.status(400).json({
+            message: "Invalid data format."
+        });
+        return;
+    }
+    let students = req.body['students'];
+    let values = [];
+    for(const _student of students) {
+        values.push([_student, req.params.powerupType]);
+    }
+    let query = format('INSERT INTO powerups(student, type_id) VALUES %L', values);
+    connectionPool.query(query)
+    .then( results => {
+        res.status(200).json({
+            message: "Powerups successfully added to all students provided in a list."
+        });
+    })
+    .catch( error => {
+        console.log(error);
+        res.status(500).json({
+            message: "Adding powerup to students failed.",
+            reason: error
+        });
+    });
+});
+//Student
 //Get Tokens table
 router.get('/tokens/:student', (req, res) => {
     let student = req.params.student;
-    let amount;
     (async () => {
         let resp = await connectionPool.query("SELECT amount FROM tokens WHERE student=$1;", [student]);
         if(resp.rows.length == 0) {
@@ -38,7 +65,8 @@ router.get('/tokens/:student', (req, res) => {
             return;
         }
         res.status(200).json({
-            amount: resp.rows[0].amount
+            message: "Tokens for student " + student + " successfully retrieved.",
+            data: { amount: resp.rows[0].amount }
         });
     })()
     .catch( error => {
@@ -48,7 +76,20 @@ router.get('/tokens/:student', (req, res) => {
         });
     });
 });
-
+//Admin
+router.get('/tokens/', (req,res) => {
+    connectionPool.query("SELECT * from tokens;")
+    .then( (results) => {
+        res.status(200).json(results.rows);
+    })
+    .catch( (error) => {
+        res.status(500).json({
+            message: "Tokens data retrieval failed.",
+            reason: error
+        });
+    });
+});
+//Student
 // Buy
 router.post('/buy/:student/:powerupType', (req, res) => {
     let student = req.params.student;
@@ -95,7 +136,7 @@ router.post('/buy/:student/:powerupType', (req, res) => {
             powerupType: powerup_type,
             price: price,
             tokens: amount-price
-        })
+        });
     })
     .catch(error => {
         console.log(error);
@@ -104,7 +145,6 @@ router.post('/buy/:student/:powerupType', (req, res) => {
             reason: error
         })
     });
-}) ;
-
+});
 
 export default router;

@@ -11,7 +11,7 @@ const validateAssignment = (data) => {
     }
     return false;
 }
-//+
+//All
 //Get all
 router.get('/all', (req,res) => {
     connectionPool.query("SELECT * FROM assignments ORDER BY id ASC;")
@@ -23,7 +23,7 @@ router.get('/all', (req,res) => {
             res.status(500).json({ message: "Internal database error." });
         });
 });
-//+
+//Admin
 //Get all tasks for given assignment
 router.get('/:id/tasks', (req,res) => {
     connectionPool.query("SELECT * from tasks where assignment_id=$1 ORDER BY id ASC;", [req.params.id])
@@ -35,7 +35,7 @@ router.get('/:id/tasks', (req,res) => {
         res.status(500).json({ message: "Internal database error."});
     });
 });
-
+//All
 //Get assignment by ID
 router.get('/:id', (req,res) => {
     connectionPool.query("SELECT * from assignments WHERE id=$1", [req.params.id] )
@@ -47,7 +47,7 @@ router.get('/:id', (req,res) => {
         res.status(500).json({ message: "Internal database error."});
     })
 })
-
+//Admin
 //Create assignment
 router.post('/create', (req,res) => {
     if(!validateAssignment(req.body)) {
@@ -64,7 +64,7 @@ router.post('/create', (req,res) => {
             res.status(500).json({ message: "Internal database error."});
         })
 });
-
+//Admin
 //Update one 
 router.put('/:assignment_id', (req,res) => {
     if(!validateAssignment(req.body)) {
@@ -81,7 +81,7 @@ router.put('/:assignment_id', (req,res) => {
             res.status(500).json({ message: "Internal database error."});
         })
 });
-
+//Admin
 //Delete one
 router.delete('/:assignment_id', (req,res) => {
     connectionPool.query("DELETE FROM assignments WHERE id=$1;", [ req.params.assignment_id ])
@@ -141,16 +141,35 @@ const getTasks = async (assignment_id) => {
     
 }
 
+const assignmentUnlocked = async (student, assignment_id) => {
+    if(assignment_id <= 0) throw "Invalid assignment_id";
+    let previousAssignmentQuery = 'SELECT id FROM assignments WHERE id<$1 ORDER BY id DESC;';
+    let res = await connectionPool.query(previousAssignmentQuery, [assignment_id]);
+    if(res.rows.length == 0)
+        return true; //First assignment;
+    let previousAssignment_id = res.rows[0].id;
+    let checkQuery = 'SELECT id FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND turned_in=true AND percent=1';
+    res = await connectionPool.query(checkQuery, [student, previousAssignment_id]);
+    if(res.rows.length < 5)
+        return false;
+    return true;
+}
+//Student
 //Start assignment
 router.post('/:assignment_id/:student/start', (req,res) => {
     let student = req.params.student;
     let assignment_id = req.params.assignment_id;
     (async () => {
+        //Checking if student can even start the assignment 
         let checkActiveStatus = await connectionPool.query("SELECT active FROM assignments WHERE id=$1", [assignment_id]);
         if(checkActiveStatus.rows.length == 0)
             throw "Assignment with given ID does not exist.";
         if(checkActiveStatus.rows[0].active == false)
             throw "Assignment with given ID is not active yet.";
+        let unlocked = await assignmentUnlocked(student, assignment_id);
+        if(!unlocked)
+            throw "Student " + student + " does not fulfill requirements for starting next assignment.";
+        //Get tasks for student's assignment from DB
         let tasks = await getTasks(assignment_id);
         if(tasks.length == 0)
             throw "Task selection failed.";
@@ -176,8 +195,8 @@ router.post('/:assignment_id/:student/start', (req,res) => {
             let insertTasksQuery = format(`INSERT INTO student_tasks(student, assignment_id, task_id, task_number, task_name) VALUES %L`, insertTasksQueryValues);
             await client.query(insertTasksQuery);
             //Insert first task as current_task for assignment
-            let insertCurrentTaskQueryValues = [ student, assignment_id, tasks[0].task_id, tasks[0].task_name ];
-            let insertCurrentTaskQuery = format(`INSERT INTO current_tasks(student,assignment_id, task_id, task_name) VALUES (%L)`, insertCurrentTaskQueryValues);
+            let insertCurrentTaskQueryValues = [ student, assignment_id, tasks[0].task_id, tasks[0].task_name, 1];
+            let insertCurrentTaskQuery = format(`INSERT INTO current_tasks(student,assignment_id, task_id, task_name, task_number) VALUES (%L)`, insertCurrentTaskQueryValues);
             
             await client.query(insertCurrentTaskQuery);
 
@@ -185,6 +204,11 @@ router.post('/:assignment_id/:student/start', (req,res) => {
             //Treba mi ovdje lokacija gdje treba upisat to govno.
             console.log("Switching files");
             await client.query('COMMIT'); 
+            let taskData = {
+                task_number: 1,
+                task_name: tasks[0].task_name
+            }
+            return taskData;
         } catch(e) {
             console.log(e);
             //If any of the queries fail, db is rolled back.
@@ -194,12 +218,14 @@ router.post('/:assignment_id/:student/start', (req,res) => {
             client.release();
         }
     })()
-    .then( () => {
+    .then( (taskData) => {
         res.status(200).json({
-            message: "Assignment successfully started."
+            message: "Assignment successfully started.",
+            taskData: taskData
         })
     })
     .catch(error => {
+        console.group(error);
         res.status(500).json({
             message: "Starting assignment for student " + student + " failed.",
             reason: error
