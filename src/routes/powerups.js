@@ -146,5 +146,18 @@ router.post('/buy/:student/:powerupType', (req, res) => {
         })
     });
 });
+//All
+router.get('/types', (req, res) => {
+    connectionPool.query("SELECT * from powerup_types;")
+    .then( results => {
+        res.status(200).json(results.rows);
+    })
+    .catch( error => {
+        res.status(500).json({
+            message: "Powerup Types data retrieval failed.",
+            reason: error
+        });
+    });
+})
 
 export default router;

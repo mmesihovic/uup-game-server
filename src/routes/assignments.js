@@ -1,6 +1,7 @@
 import express from 'express';
 import { connectionPool } from '../utils/connection-pool';
 import format from 'pg-format';
+import { challengeConfig } from '../utils/challenge-config';
 const router = express.Router();
 
 const validateAssignment = (data) => {
@@ -35,7 +36,7 @@ router.get('/:id/tasks', (req,res) => {
         res.status(500).json({ message: "Internal database error."});
     });
 });
-//All
+//Admin
 //Get assignment by ID
 router.get('/:id', (req,res) => {
     connectionPool.query("SELECT * from assignments WHERE id=$1", [req.params.id] )
@@ -81,8 +82,10 @@ router.put('/:assignment_id', (req,res) => {
             res.status(500).json({ message: "Internal database error."});
         })
 });
+
 //Admin
 //Delete one
+/*
 router.delete('/:assignment_id', (req,res) => {
     connectionPool.query("DELETE FROM assignments WHERE id=$1;", [ req.params.assignment_id ])
     .then( results => {
@@ -93,7 +96,7 @@ router.delete('/:assignment_id', (req,res) => {
         res.status(500).json({ message: "Internal database error" });
     }); 
 });
-
+*/
 
 const separateTasksByCategory = (data) => {
     const result = {};
@@ -143,14 +146,16 @@ const getTasks = async (assignment_id) => {
 
 const assignmentUnlocked = async (student, assignment_id) => {
     if(assignment_id <= 0) throw "Invalid assignment_id";
+    console.log("Assignment we're checking unlock for: ", assignment_id);
     let previousAssignmentQuery = 'SELECT id FROM assignments WHERE id<$1 ORDER BY id DESC;';
     let res = await connectionPool.query(previousAssignmentQuery, [assignment_id]);
     if(res.rows.length == 0)
         return true; //First assignment;
     let previousAssignment_id = res.rows[0].id;
+    console.log("Previous assignment: ", previousAssignment_id);
     let checkQuery = 'SELECT id FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND turned_in=true AND percent=1';
     res = await connectionPool.query(checkQuery, [student, previousAssignment_id]);
-    if(res.rows.length < 5)
+    if(res.rows.length < challengeConfig.tasksRequired)
         return false;
     return true;
 }

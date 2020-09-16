@@ -3,4 +3,5 @@ export const challengeConfig = {
     noPowerups: 100,
     maxPoints: 140,
     maxPointsNoPowerups: 300,
+    tasksRequired: 5
 };
