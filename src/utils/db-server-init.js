@@ -29,10 +29,9 @@ import {
     await client.query(createCurrentTasksTable);
     await client.query(createStudentTasksTable); 
     //Populate
-    await client.query(populateAssignmentsTable);
+    //await client.query(populateAssignmentsTable);
     await client.query(populateTaskCategoriesTable);
     await client.query(populatePowerupTypesTable);
-    await client.query(`UPDATE assignments SET active=true where name='Lesson 1';`);
     
     client.release();
 })().catch(err => console.log(err.stack));
