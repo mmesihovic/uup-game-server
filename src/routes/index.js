@@ -15,9 +15,10 @@ router.get('/:student', (req, res) => {
     //Get tokens
     let tokensQuery = 'SELECT amount FROM tokens WHERE student=$1;';
     //Get student tasks info
-    let studentTasksQuery = 'SELECT assignment_id, COALESCE(SUM(points),0) as points, COUNT(percent=1) FROM student_tasks WHERE student=$1 GROUP BY assignment_id ORDER BY assignment_id ASC;';
+    let studentTasksQuery = 'SELECT assignment_id, COALESCE(SUM(points),0) as points FROM student_tasks WHERE student=$1 GROUP BY assignment_id ORDER BY assignment_id ASC;';
     //Get amount of fully completed tasks
-    let completedTasksQuery = 'SELECT assignment_id, COALESCE(COUNT(*),0) FROM '
+    let completedTasksQuery = 'SELECT assignment_id, COALESCE(COUNT(*),0) as completed FROM student_tasks WHERE student=$1 AND percent=1 GROUP by assignment_id ORDER BY assignment_id ASC;'
+    let turnedinTasksQuery = 'SELECT assignment_id, COALESCE(COUNT(*),0) as turned_in FROM student_tasks WHERE student=$1 AND turned_in=TRUE GROUP by assignment_id ORDER BY assignment_id ASC;'
     //Get current tasks 
     let currentTasksQuery = 'SELECT assignment_id, task_number, task_name FROM current_tasks WHERE student=$1;';
     let assignmentProgressData;
@@ -25,6 +26,8 @@ router.get('/:student', (req, res) => {
     let tokensData;
     let studentTasksData;
     let currentTasksData;
+    let completedTasksData;
+    let turnedinTasksData;
     let dataObject;
     (async () => {
         const client = await connectionPool.connect();
@@ -34,6 +37,8 @@ router.get('/:student', (req, res) => {
             tokensData = await client.query(tokensQuery, [req.params.student]);
             currentTasksData = await client.query(currentTasksQuery, [req.params.student]);
             studentTasksData = await client.query(studentTasksQuery, [req.params.student]);
+            completedTasksData = await client.query(completedTasksQuery, [req.params.student]);
+            turnedinTasksData = await client.query(turnedinTasksQuery, [req.params.student]);
             let tokensAmount = (tokensData.rows.length == 0) ? 0 : tokensData.rows[0].amount;
             dataObject = {
                 student: req.params.student,
@@ -41,7 +46,9 @@ router.get('/:student', (req, res) => {
                 powerups: powerupsStatusData.rows,
                 assignmentProgress: assignmentProgressData.rows,
                 currentTasks: currentTasksData.rows,
-                assignmentPoints: studentTasksData.rows
+                assignmentPoints: studentTasksData.rows,
+                completedTasks: completedTasksData.rows,
+                turnedInTasks: turnedinTasksData.rows
             }
         } catch(e) {
             console.log(e);
