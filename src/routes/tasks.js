@@ -862,6 +862,22 @@ router.put("/categories/update/:id", (req, res) => {
             });
         });
 });
+//Student
+router.get('/previousTask/points/get/:student/:assignment_id/:task_number', (req,res) => {
+    let student = req.params.student;
+    let assignment_id = req.params.assignment_id;
+    let task_number = req.params.task_number;
+    connectionPool.query("SELECT points FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND task_number=$3 AND turned_in=TRUE;", [student,assignment_id,task_number])
+    .then( results => {
+        res.status(200).json(results.rows.length != 0 ? results.rows[0] : -1)
+    })
+    .catch( error => {
+        console.log(error.stack);
+        res.status(500).json({
+            message: "Internal database error."
+        });
+    })    
+})
 
 export default router;
 
