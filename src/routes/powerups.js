@@ -160,4 +160,68 @@ router.get('/types', (req, res) => {
     });
 })
 
+const getHint = async (student, assignment_id, task_number) => {
+    let hint;
+    const dbCall = async () => {
+        const client = await connectionPool.connect();
+        try {
+            //Get powerupType_ID for HINT
+            let powerupType_id;
+            let resp = await client.query(`SELECT * from powerup_types WHERE name=$1;`, ['Hint']);
+            if(resp.rows.length == 0)
+                throw "Powerup 'Hint' not found";
+            powerupType_id = resp.rows[0].id;
+            let query = "SELECT task_id FROM student_tasks WHERE student=$1 and assignment_id=$2 and task_number=$3"
+            resp = await client.query(query, [student, assignment_id, task_number]);
+            if(resp.rows.length == 0)
+                throw "Student has not used hint on task wih given task number.";
+            let task_id = resp.rows[0].task_id;
+            let checkQuery = "SELECT task_id FROM powerups WHERE type_id=$1 AND used=TRUE AND student=$2 AND assignment_id=$3 AND task_number=$4"
+            resp = await client.query(checkQuery, [powerupType_id, student, assignment_id, task_number]);
+            if(resp.rows.length == 0)
+                throw "Student has not used hint on task with given task number."
+            let check_task_id = resp.rows[0].task_id;
+            if(task_id != check_task_id) {
+                hint = "";
+                return;
+            }
+            resp = await client.query("SELECT hint FROM tasks WHERE id=$1", [task_id]);
+            if(resp.rows.legnth == 0)
+                throw "Hint does not exist";   
+            hint = resp.rows[0].hint;
+        } catch(e) {
+            console.log(e);
+            throw e;
+        } finally {
+            client.release();
+        }
+    };
+    await dbCall()
+    .catch(e=> {
+        console.log(e.stack);
+        throw e;
+    });
+    return hint;
+}
+
+router.get('/hints/used/:student/:assignment_id/:task_number', (req,res) => {
+    let student = req.params.student;
+    let assignment_id = req.params.assignment_id;
+    let task_number = req.params.task_number;
+    let hint;
+    (async () => { hint = await getHint(student, assignment_id, task_number); })()
+    .then(() => {
+        res.status(200).json({
+            message: "Hint successfully retrieved.",
+            hint: hint
+        });
+    }).catch(error => { 
+        console.log(error.stack);
+        res.status(500).json({ 
+            message: "Hint retrieval process failed.",
+            reason: error
+        });
+    });
+})
+
 export default router;

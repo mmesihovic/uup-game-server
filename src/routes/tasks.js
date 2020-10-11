@@ -574,6 +574,7 @@ router.post('/turn_in/:student/:assignment_id', (req, res) => {
 router.post('/swap/:student/:assignment_id', (req,res) => {
     let student = req.params.student;
     let assignment_id = req.params.assignment_id;
+    let data;
     (async () => { 
         const client = await connectionPool.connect();
         try {
@@ -605,7 +606,7 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
                     WHERE id = (SELECT id FROM powerups WHERE student = $3 AND type_id=$4 AND used=FALSE LIMIT 1)`;
             let values = [ task_number, assignment_id, student, powerupType_id]; 
             await client.query(query, values); 
-            await replaceTasks('swap',student,assignment_id, 0, {}); 
+            data = await replaceTasks('swap',student,assignment_id, 0, {}); 
             await client.query("COMMIT");
         } catch(e) {
             client.query("ROLLBACK;");
@@ -618,7 +619,7 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
     .then(() => {
         res.status(200).json({ 
             message: "Current task for student " + student + " in given assignment has been swapped successfully.",
-            assignmentCompleted: false
+            data: data
         });
     }).catch(error => { 
         res.status(500).json({ 
