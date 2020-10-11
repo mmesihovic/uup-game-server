@@ -685,18 +685,20 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
     let data;
     let taskData = {
         task_number : req.body.task_number,
-        task_name : req.body.task_name
+        task_name : req.body.task_name,
+        previous_points: 0,
     };
     (async () => { 
         const client = await connectionPool.connect();
         try { 
             await client.query("BEGIN");
             //Get this task_id
-            let returnTaskQuery = 'SELECT task_id FROM student_tasks WHERE student = $1 AND assignment_id = $2 AND task_number = $3 AND task_name = $4;';
+            let returnTaskQuery = 'SELECT task_id, points FROM student_tasks WHERE student = $1 AND assignment_id = $2 AND task_number = $3 AND task_name = $4;';
             let results = await client.query(returnTaskQuery, [student, assignment_id, taskData.task_number, taskData.task_name]);
             if(results.rows.length == 0)
                 throw "Task with given number and name hasn't been assigned to student in given assignment.";
             let newTask_id = results.rows[0].task_id;
+            taskData.previous_points = results.rows[0].points;
             //Get powerupType_ID for Second Chance
             let powerupType_id;
             results = await client.query(`SELECT * from powerup_types WHERE name='Second Chance';`)
