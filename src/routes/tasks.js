@@ -1,4 +1,6 @@
 import express from 'express';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 import format from 'pg-format';
 import { connectionPool } from '../utils/connection-pool';
 import { challengeConfig } from '../utils/challenge-config';
@@ -184,7 +186,30 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
     }
     return newTask;
 }
-
+/*
+const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo) => {
+    let __gameServerKey = uuidv4();
+    fs.writeFileSync('/usr/local/webide/data/__gameServerKey', __gameServerKey);
+    let url = '';
+    let result = await fetch(url, {
+        method : "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            key: __gameServerKey,
+            username: student,
+            assignment_id: assignment_id,
+            oldTask_id: oldTask_id,
+            newTask_id: newTask_id,
+            redo: redo
+        })                    
+    });
+    let data = await result.json(); 
+    fs.writeFileSync('/usr/local/webide/data/__gameServerKey', '-');
+    return data.success;
+}
+*/
 const replaceTasks = async (replacementType, student, assignment_id, percent, taskData) => {
     let done = false;
     let currentTaskQueryValues = [ student, assignment_id ];
@@ -336,18 +361,30 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                     await client.query('UPDATE assignment_progress SET return_id=-1 WHERE student=$1 AND assignment_id=$2', [student,assignment_id]);
                     console.log("pulling from task:history");
                     // iz task historya
+                  /*  let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
+                    if(!successfullFileSwitch)
+                        throw "Switching files on file system failed."; */
                 } else {
                     console.log("pulling from uup-game");
                     // iz uup-game
+                 /*   let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
+                    if(!successfullFileSwitch)
+                        throw "Switching files on file system failed.";*/
                 }
             }
             else if(replacementType == 'swap') {
                 // Ovdje uvijek ide iz uup-game
                 console.log("Swap : from uup-game");
+            /*    let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
+                if(!successfullFileSwitch)
+                    throw "Switching files on file system failed.";*/
             }
             else if(replacementType == 'second-chance') {
                 // Ovdje uvijek ide iz taskHistory 
                 console.log("Second chance: from taskHistory");
+           /*     let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, newTask.id, true);
+                if(!successfullFileSwitch)
+                    throw "Switching files on file system failed.";*/
             }
             await client.query('COMMIT');
             returnObject = {
@@ -647,7 +684,7 @@ router.post('/hint/:student/:assignment_id', (req,res) => {
 });
 //Student
 //Get all turned in tasks (names) for student and given assignment which aren't fully completed and student hasn't used powerup with type_id on them
-//and he can return on them.
+//and he can return on them. [USED ONLY FOR SECOND CHANCE, BUT DATA CAN BE RETRIEVED FOR OTHER POWERUP TYPES ]
 router.get('/turned_in/:student/:assignment_id/:type_id', (req, res) => {
     let student = req.params.student;
     let assignment_id = req.params.assignment_id;

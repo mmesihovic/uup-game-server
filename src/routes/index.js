@@ -13,7 +13,7 @@ router.get('/:student', (req, res) => {
     //Get all assignment progress
     let assignmentProgressQuery = 'SELECT assignment_id, status FROM assignment_progress WHERE student=$1;';
     //Get all powerups
-    let powerupsStatusQuery = 'SELECT type_id, used, assignment_id, task_number, task_name FROM powerups WHERE student=$1;';
+    let powerupsStatusQuery = 'SELECT type_id, used, assignment_id, task_number FROM powerups WHERE student=$1;';
     //Get tokens
     let tokensQuery = 'SELECT amount FROM tokens WHERE student=$1;';
     //Get student tasks info
