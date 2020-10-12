@@ -33,11 +33,6 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
         let pointsCheck = points > assignmentChallengePoints - 0.05 ? true : false;
         let noPowerupsCheck = powerupsUsed == 0 ? true : false;
         let maxPointsCheck = Math.abs(points - assignmentMaxPoints) < 0.00001 ? true : false;
-        console.log("Max points check: ", maxPointsCheck);
-        console.log("No powerups check: ", noPowerupsCheck);
-        console.log("Points check:", pointsCheck);
-        console.log("Points: ", points);
-        console.log("Powerups used: ", powerupsUsed);
         if(maxPointsCheck && noPowerupsCheck) {
             amount = challengeConfig.maxPointsNoPowerups;
             reason = "You have completed assignment with maximum points and no powerups used.";
