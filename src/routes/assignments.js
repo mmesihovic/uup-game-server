@@ -157,6 +157,27 @@ const assignmentUnlocked = async (student, assignment_id) => {
         return false;
     return true;
 }
+
+const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo) => {
+    let url = 'http://localhost/services/game_shifter.php';
+    let result = await fetch(url, {
+        method : "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            key: __gameServerKey,
+            username: student,
+            assignment_id: assignment_id,
+            oldTask_id: oldTask_id,
+            newTask_id: newTask_id,
+            redo: redo
+        })                    
+    });
+    let data = await result.json(); 
+    return data.success;
+}
+
 //Student
 //Start assignment
 router.post('/:assignment_id/:student/start', (req,res) => {
@@ -203,9 +224,9 @@ router.post('/:assignment_id/:student/start', (req,res) => {
             
             await client.query(insertCurrentTaskQuery);
 
-            //File system switch.
-            //Treba mi ovdje lokacija gdje treba upisat to govno.
-            console.log("Switching files");
+            let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
+            if(!successfullFileSwitch)
+                throw "Switching files on file system failed.";
             await client.query('COMMIT'); 
             let taskData = {
                 task_number: 1,

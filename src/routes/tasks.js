@@ -1,6 +1,4 @@
 import express from 'express';
-import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
 import format from 'pg-format';
 import { connectionPool } from '../utils/connection-pool';
 import { challengeConfig } from '../utils/challenge-config';
@@ -165,11 +163,14 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                     if(res.rows.length == 0)
                         throw "There are no tasks with given parameters.";
                     let oldTask_id = res.rows[0].task_id; 
+                    let checkChainCallingQuery = 'SELECT return_id FROM assignment_progress WHERE student=$1 AND assignment_id=$2;';
+                    res = await client.query(checkChainCallingQuery, [student, assignment_id]);
+                    let check = (res.rows.length > 0 && res.rows[0].return_id == -2)
                     return {
                         id: oldTask_id,
                         name: taskData.task_name,
                         task_number: taskData.task_number,
-                        previous_task: currentTask_id
+                        previous_task: check ? -2 : currentTask_id
                     }
                 } catch (e) {
                     throw (e=="There are no tasks with given parameters.") ? e : "Getting next task process failed.";
@@ -186,11 +187,9 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
     }
     return newTask;
 }
-/*
+
 const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo) => {
-    let __gameServerKey = uuidv4();
-    fs.writeFileSync('/usr/local/webide/data/__gameServerKey', __gameServerKey);
-    let url = '';
+    let url = 'http://localhost/services/game_shifter.php';
     let result = await fetch(url, {
         method : "POST",
         headers: {
@@ -206,10 +205,9 @@ const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo)
         })                    
     });
     let data = await result.json(); 
-    fs.writeFileSync('/usr/local/webide/data/__gameServerKey', '-');
     return data.success;
 }
-*/
+
 const replaceTasks = async (replacementType, student, assignment_id, percent, taskData) => {
     let done = false;
     let currentTaskQueryValues = [ student, assignment_id ];
@@ -285,22 +283,25 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
         const client = await connectionPool.connect();
         try {
             await client.query('BEGIN');    
-            
             //Update current_task table
             if(newTask.previous_task == -2) {
-                //if getNextTask returns currentTask_id as -2, it means that assignment was complete and there isn't any rows in current_tasks for that assignment
-                //and most definitely it will return -2 only when second-chance powerup is used
-                let insertCurrentTaskQueryValues = [ student, assignment_id, newTask.id, newTask.name, newTask.task_number ];
-                let insertCurrentTaskQuery = format(`INSERT INTO current_tasks(student,assignment_id, task_id, task_name, task_number) VALUES (%L)`, insertCurrentTaskQueryValues);
-                await client.query(insertCurrentTaskQuery);
+                let checkQuery = "SELECT task_name, task_number FROM current_tasks WHERE student=$1 and assignment_id=$2";
+                let res = await client.query(checkQuery, [student, assignment_id]);
+                if(res.rows.length == 0) {
+                    let insertCurrentTaskQueryValues = [ student, assignment_id, newTask.id, newTask.name, newTask.task_number ];
+                    let insertCurrentTaskQuery = format(`INSERT INTO current_tasks(student,assignment_id, task_id, task_name, task_number) VALUES (%L)`, insertCurrentTaskQueryValues);
+                    await client.query(insertCurrentTaskQuery);
+                } else {
+                    await client.query(updateCurrentTasksQuery, [ newTask.id, newTask.name, newTask.task_number, student, assignment_id ]);
+                }
             } else {
                 await client.query(updateCurrentTasksQuery, updateCurrentTasksQueryValues);    
             }
-
+            let checkChainCall;
             if(replacementType == 'second-chance') {
                 let res = await client.query(checkChainCallingQuery, [student, assignment_id]);
-                let check = res.rows.length && res.rows[0].return_id == -1;
-                if(check) {
+                checkChainCall = res.rows.length > 0 && (res.rows[0].return_id == -1);
+                if(checkChainCall) {
                     //If returning id is -1 it means that this is not a chain call, and we update the row with currentTask_id (so we can use it later)
                     let updateQuery = `UPDATE assignment_progress SET return_id = $1, status = 'In progress' WHERE student=$2 AND assignment_id=$3;`;
                     await client.query(updateQuery, [currentTask_id, student, assignment_id]);
@@ -346,45 +347,65 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
             }
 
             //If assignment is completed update the assignment_progress for student
-            if(done) 
+            if(done) { 
                 await client.query(updateProgressQuery, [ student, assignment_id ]);
-            
-            //Switch files on filesystem           
-            if(replacementType == 'turn-in') {
-                // IZ TABELE ASSIGNMENT_PROGRESS uzeti return_id i uporedit sa newTask id, ako se matchaju, onda iz taskHistory, ako ne onda iz uup-game
-                // ovdje onda treba dodati i ako se matchaju, da ga vrati na -1 u slucaju da on ponovo kasnije hoce powerup na istom assginmentu.
-                let locationQuery = 'SELECT return_id FROM assignment_progress WHERE student=$1 AND assignment_id=$2';
-                let res = await client.query(locationQuery, [student, assignment_id]);
-                let return_id = (res.rows.length) ? res.rows[0].return_id : -4;
-                if( newTask.id == return_id) {
-                    //if we are returning to task with return_id then we set return_id to -1 so student can use the powerup again
-                    await client.query('UPDATE assignment_progress SET return_id=-1 WHERE student=$1 AND assignment_id=$2', [student,assignment_id]);
-                    console.log("pulling from task:history");
-                    // iz task historya
-                  /*  let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
-                    if(!successfullFileSwitch)
-                        throw "Switching files on file system failed."; */
-                } else {
-                    console.log("pulling from uup-game");
-                    // iz uup-game
-                 /*   let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
-                    if(!successfullFileSwitch)
-                        throw "Switching files on file system failed.";*/
+                //Samo pokupi iz student workspace-a u history
+                console.log('ne kupimo nista sa file systema nego samo iz studentovog shita');
+                let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, -1, false);
+                if(!successfullFileSwitch)
+                    throw "Switching files on file system failed.";
+            } else {
+                //Switch files on filesystem           
+                if(replacementType == 'turn-in') {
+                    // IZ TABELE ASSIGNMENT_PROGRESS uzeti return_id i uporedit sa newTask id, ako se matchaju, onda iz taskHistory, ako ne onda iz uup-game
+                    // ovdje onda treba dodati i ako se matchaju, da ga vrati na -1 u slucaju da on ponovo kasnije hoce powerup na istom assginmentu.
+                    let locationQuery = 'SELECT return_id FROM assignment_progress WHERE student=$1 AND assignment_id=$2';
+                    let res = await client.query(locationQuery, [student, assignment_id]);
+                    let return_id = (res.rows.length) ? res.rows[0].return_id : -4;
+                    if( newTask.id == return_id) {
+                        //if we are returning to task with return_id then we set return_id to -1 so student can use the powerup again
+                        await client.query('UPDATE assignment_progress SET return_id=-1 WHERE student=$1 AND assignment_id=$2', [student,assignment_id]);
+                        console.log("pulling from task:history");
+                        console.log("currentTask_id: ", currentTask_id);
+                        console.log("newTask_id: ", newTask.id);
+                        // iz task historya
+                       let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
+                        if(!successfullFileSwitch)
+                            throw "Switching files on file system failed."; 
+                    } else {
+                        console.log("pulling from uup-game");
+                        // iz uup-game
+                       let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
+                        if(!successfullFileSwitch)
+                            throw "Switching files on file system failed.";
+                    }
                 }
-            }
-            else if(replacementType == 'swap') {
-                // Ovdje uvijek ide iz uup-game
-                console.log("Swap : from uup-game");
-            /*    let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
-                if(!successfullFileSwitch)
-                    throw "Switching files on file system failed.";*/
-            }
-            else if(replacementType == 'second-chance') {
-                // Ovdje uvijek ide iz taskHistory 
-                console.log("Second chance: from taskHistory");
-           /*     let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, newTask.id, true);
-                if(!successfullFileSwitch)
-                    throw "Switching files on file system failed.";*/
+                else if(replacementType == 'swap') {
+                    // Ovdje uvijek ide iz uup-game i ne cuva nista u task history
+                    console.log("Swap : from uup-game");
+                    let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
+                    if(!successfullFileSwitch)
+                        throw "Switching files on file system failed.";
+                }
+                else if(replacementType == 'second-chance') {
+                    // Ovdje uvijek ide iz taskHistory 
+                    console.log("Second chance: from taskHistory");
+                    console.log(newTask.previous_task);
+                    console.log(newTask.id);
+                    if(!checkChainCall) {
+                        // ovdje gurnemo negativno jer ne treba cuvati u history
+                        console.log("Chain callao sam, ne cuvamo u history");
+                        let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, true);
+                        if(!successfullFileSwitch)
+                            throw "Switching files on file system failed.";
+                        
+                    } else {
+                        console.log("cuvamo u history ");
+                        let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, newTask.id, true);
+                        if(!successfullFileSwitch)
+                            throw "Switching files on file system failed.";
+                    }
+                }
             }
             await client.query('COMMIT');
             returnObject = {
@@ -692,7 +713,8 @@ router.get('/turned_in/:student/:assignment_id/:type_id', (req, res) => {
     let query = `SELECT task_number, task_name
                 FROM student_tasks
                 WHERE student=$1 and assignment_id=$2 AND turned_in=true AND percent<1
-                AND task_number NOT IN (SELECT task_number FROM powerups WHERE student=$1 AND assignment_id=$2 AND type_id=$3 AND used=TRUE);`
+                AND task_number NOT IN (SELECT task_number FROM powerups WHERE student=$1 AND assignment_id=$2 AND type_id=$3 AND used=TRUE)
+                ORDER BY task_number ASC;`
     connectionPool.query(query, [student, assignment_id, type_id])
     .then( results => {
         res.status(200).json(results.rows);
