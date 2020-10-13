@@ -224,7 +224,7 @@ router.post('/:assignment_id/:student/start', (req,res) => {
             
             await client.query(insertCurrentTaskQuery);
 
-            let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
+            let successfullFileSwitch = await switchFiles(student, assignment_id, -1, tasks[0].task_id, false);
             if(!successfullFileSwitch)
                 throw "Switching files on file system failed.";
             await client.query('COMMIT'); 
