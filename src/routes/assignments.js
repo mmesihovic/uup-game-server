@@ -249,7 +249,7 @@ router.post('/:assignment_id/:student/start', (req,res) => {
         })
     })
     .catch(error => {
-        console.group(error);
+        console.log(error);
         res.status(500).json({
             message: "Starting assignment for student " + student + " failed.",
             reason: error
