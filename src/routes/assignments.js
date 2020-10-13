@@ -1,6 +1,7 @@
 import express from 'express';
 import { connectionPool } from '../utils/connection-pool';
 import format from 'pg-format';
+import fetch from 'node-fetch';
 import { challengeConfig } from '../utils/challenge-config';
 const router = express.Router();
 
