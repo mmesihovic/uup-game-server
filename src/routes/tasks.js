@@ -196,7 +196,6 @@ const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo)
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            key: __gameServerKey,
             username: student,
             assignment_id: assignment_id,
             oldTask_id: oldTask_id,
