@@ -1,5 +1,6 @@
 import express from 'express';
 import format from 'pg-format';
+import fetch from 'node-fetch';
 import { connectionPool } from '../utils/connection-pool';
 import { challengeConfig } from '../utils/challenge-config';
 
@@ -65,7 +66,7 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
         client.release();
     }
 }
-
+//TODO: FIX LOGIC FOR GETTING NEXT TASK WHEN USING PUP SWITCH TASK
 const getNextTask = async (replacementType, student, assignment_id, taskData) => {
     let newTask = { id: -1, name: "Nothing happened so far", task_number:0 };
     let currentTaskQuery = `SELECT task_id, task_number FROM current_tasks
@@ -139,6 +140,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             };   
             } catch(e) {
                 console.log(e);
+                console.log("da vidimo da li sam pao ovdje ili nisam?");
                 throw "Getting next task process failed.";
             } finally {
                 client.release();
@@ -217,6 +219,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     let additionalTokensObject = {};
     try {
         newTask = await getNextTask(replacementType, student, assignment_id, taskData);
+        console.log("KOJI JE NOVI TASK: ", newTask);
         currentTask_id = newTask.previous_task;
         let idValue = newTask.previous_task == -2 ? newTask.id : currentTask_id;
         // Daj kategoriju za current_task
@@ -244,6 +247,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
 
     } catch(e) {        
         console.log(e);
+        console.log("ili sam mozda ovdje pao?");
         throw e;
     }
     let updateStudentTasksQuery;
@@ -484,11 +488,13 @@ const getTaskHint = async (student, assignment_id) => {
 }
 
 const validateTurnInBody = (data) => {
+    console.log("Validate turn in body data check: ", data);
     if(!!data) {
         let keys = Object.keys(data);
         return keys.includes('passed_tests') && keys.includes('total_tests') && (typeof data['passed_tests'] == 'number') 
         && (typeof data['total_tests'] == 'number') && data['passed_tests']>0 && data['total_tests']>0 && data['passed_tests'] <= data['total_tests'];
     }
+    console.log("da nije slucajno ovdje doslo?");
     return false;
 }
 
@@ -599,6 +605,7 @@ router.get('/:student/current/:assignment_id', (req,res) => {
 //Student
 //Turn in task and yield next task in given assignment to users workspace
 router.post('/turn_in/:student/:assignment_id', (req, res) => {
+    console.log("REQ BODY: ",req.body);
     if(!validateTurnInBody(req.body)) {
         res.status(400).json({
             message: "Invalid parameters."
