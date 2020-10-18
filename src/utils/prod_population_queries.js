@@ -16,9 +16,7 @@ const fetch = require('node-fetch');
             })
         }).then( response => response.json())
         .then( async data => { 
-            console.log(data);
             let sid = data.sid;
-            console.log("SID: ", sid);
             let assignmentParams = {
                 method: "POST",
                 credentials: 'include',
@@ -38,7 +36,6 @@ const fetch = require('node-fetch');
                 });
                 let resp = await fetch(assignmentsURL, assignmentParams);
                 let data = await resp.json();
-                console.log("Response lekcije "+i+": ",data);
             }  
         });
     } catch (err) {

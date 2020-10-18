@@ -7,7 +7,8 @@
     "start": "node ./build/bin/www",
     "startdev": "nodemon --exec babel-node ./src/bin/www",
     "dbinit": "babel-node ./src/utils/db-init",
-    "dbServerInit": "babel-node ./src/utils/db-server-init"
+    "dbServerInit": "babel-node ./src/utils/db-server-init",
+    "createIndices": "babel-node ./src/utils/db_indices"
   },
   "dependencies": {
     "@babel/cli": "^7.10.5",

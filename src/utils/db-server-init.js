@@ -29,7 +29,6 @@ import {
     await client.query(createCurrentTasksTable);
     await client.query(createStudentTasksTable); 
     //Populate
-    //await client.query(populateAssignmentsTable);
     await client.query(populateTaskCategoriesTable);
     await client.query(populatePowerupTypesTable);
     

@@ -131,31 +131,32 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             let replacementTasksQuery = 'SELECT id, task_name FROM tasks WHERE assignment_id=$1 AND category_id=$2 AND id<>$3;';
             res = await client.query(replacementTasksQuery, [ assignment_id, category_id, currentTask_id ]);
             let tasks = res.rows;
-            let tasksAssignedQuery = 'SELECT id, task_name FROM student_tasks WHERE student=$1 and assignment_id=$2;'
+            let tasksAssignedQuery = 'SELECT task_id as id, task_name FROM student_tasks WHERE student=$1 and assignment_id=$2;'
             res = await client.query(tasksAssignedQuery, [student, assignment_id]);
             if(res.rows.length > 0) {
                 for(let i=0;i<res.rows.length;i++) {
-                    if(tasks.find(x=> x.id == res.rows[i].id))
-                        tasks.splice(i,1);
+                    let index = tasks.findIndex( x => x.id == res.rows[i].id);
+                    if(index != -1)
+                        tasks.splice(index, 1);
                 }
             }
             if(tasks.length == 0)
                 tasks = res.rows;
-            let numberOfTasks = tasks.rows.length;
+            let numberOfTasks = tasks.length;
+           
             let randomIndex = Math.floor(Math.random() * (numberOfTasks+1));
             if(randomIndex < 0)
                 randomIndex = 0;
             else if(randomIndex >= tasks.length)
                 randomIndex = tasks.length-1;
             return {
-                id: res.rows[randomIndex].id,
-                name: res.rows[randomIndex].task_name,
+                id: tasks[randomIndex].id,
+                name: tasks[randomIndex].task_name,
                 task_number: currentTask_number,
                 previous_task: currentTask_id
             };   
             } catch(e) {
                 console.log(e);
-                console.log("da vidimo da li sam pao ovdje ili nisam?");
                 throw "Getting next task process failed.";
             } finally {
                 client.release();
@@ -234,7 +235,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     let additionalTokensObject = {};
     try {
         newTask = await getNextTask(replacementType, student, assignment_id, taskData);
-        console.log("KOJI JE NOVI TASK: ", newTask);
         currentTask_id = newTask.previous_task;
         let idValue = newTask.previous_task == -2 ? newTask.id : currentTask_id;
         // Daj kategoriju za current_task
@@ -262,7 +262,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
 
     } catch(e) {        
         console.log(e);
-        console.log("ili sam mozda ovdje pao?");
         throw e;
     }
     let updateStudentTasksQuery;
@@ -368,7 +367,6 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
             if(done) { 
                 await client.query(updateProgressQuery, [ student, assignment_id ]);
                 //Samo pokupi iz student workspace-a u history
-                console.log('ne kupimo nista sa file systema nego samo iz studentovog shita');
                 let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, -1, false);
                 if(!successfullFileSwitch)
                     throw "Switching files on file system failed.";
@@ -383,16 +381,12 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                     if( newTask.id == return_id) {
                         //if we are returning to task with return_id then we set return_id to -1 so student can use the powerup again
                         await client.query('UPDATE assignment_progress SET return_id=-1 WHERE student=$1 AND assignment_id=$2', [student,assignment_id]);
-                        console.log("pulling from task:history");
-                        console.log("currentTask_id: ", currentTask_id);
-                        console.log("newTask_id: ", newTask.id);
-                        // iz task historya
+                        //pulling from task history
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
                         if(!successfullFileSwitch)
                             throw "Switching files on file system failed."; 
                     } else {
-                        console.log("pulling from uup-game");
-                        // iz uup-game
+                        //pulling from uup-game
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
                         if(!successfullFileSwitch)
                             throw "Switching files on file system failed.";
@@ -400,25 +394,19 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                 }
                 else if(replacementType == 'swap') {
                     // Ovdje uvijek ide iz uup-game i ne cuva nista u task history
-                    console.log("Swap : from uup-game");
                     let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, false);
                     if(!successfullFileSwitch)
                         throw "Switching files on file system failed.";
                 }
                 else if(replacementType == 'second-chance') {
                     // Ovdje uvijek ide iz taskHistory 
-                    console.log("Second chance: from taskHistory");
-                    console.log(newTask.previous_task);
-                    console.log(newTask.id);
                     if(!checkChainCall) {
                         // ovdje gurnemo negativno jer ne treba cuvati u history
-                        console.log("Chain callao sam, ne cuvamo u history");
                         let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, true);
                         if(!successfullFileSwitch)
                             throw "Switching files on file system failed.";
                         
                     } else {
-                        console.log("cuvamo u history ");
                         let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, newTask.id, true);
                         if(!successfullFileSwitch)
                             throw "Switching files on file system failed.";
@@ -503,13 +491,11 @@ const getTaskHint = async (student, assignment_id) => {
 }
 
 const validateTurnInBody = (data) => {
-    console.log("Validate turn in body data check: ", data);
     if(!!data) {
         let keys = Object.keys(data);
         return keys.includes('passed_tests') && keys.includes('total_tests') && (typeof data['passed_tests'] == 'number') 
         && (typeof data['total_tests'] == 'number') && data['passed_tests']>0 && data['total_tests']>0 && data['passed_tests'] <= data['total_tests'];
     }
-    console.log("da nije slucajno ovdje doslo?");
     return false;
 }
 
@@ -620,7 +606,6 @@ router.get('/:student/current/:assignment_id', (req,res) => {
 //Student
 //Turn in task and yield next task in given assignment to users workspace
 router.post('/turn_in/:student/:assignment_id', (req, res) => {
-    console.log("REQ BODY: ",req.body);
     if(!validateTurnInBody(req.body)) {
         res.status(400).json({
             message: "Invalid parameters."
