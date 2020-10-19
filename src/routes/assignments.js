@@ -177,7 +177,35 @@ const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo)
     let data = await result.json(); 
     return data.success;
 }
-//a
+
+//Admin
+router.get('/reset/:student/:assignment_id', (req,res) => {
+    let student= req.params.student;
+    let assignment_id = req.params.assignment_id;
+    (async () => {
+        await connectionPool.query("DELETE FROM student_tasks WHERE student=$1 AND assignment_id=$2", [student, assignment_id]);
+        await connectionPool.query("DELETE FROM current_tasks WHERE student=$1 AND assignment_id=$2", [student, assignment_id]);
+        await connectionPool.query("DELETE FROM assignment_progress WHERE student=$1 AND assignment_id=$2", [student, assignment_id]);
+        await connectionPool.query(`UPDATE powerups
+                                    SET used=FALSE, assignment_id=NULL,
+                                        task_number=NULL, task_id=NULL
+                                    WHERE student=$1 AND assignment_id=$2 AND used=true;`, [student, assignment_id]);
+    })()
+    .then( () => {
+        res.status(200).json({
+            message: "Assignment "+ assignment_id + " has been successfully reset for student +"+student+".",
+            data: {}
+        })
+    })
+    .catch(error => {
+        console.log(error);
+        res.status(500).json({
+            message: "Resetting assignment "+ assignment_id +" for student " + student + " failed.",
+            reason: error
+        })
+    });
+})
+
 //Student
 //Start assignment
 router.post('/:assignment_id/:student/start', (req,res) => {
