@@ -608,7 +608,8 @@ router.get('/:student/current/:assignment_id', (req,res) => {
 router.post('/turn_in/:student/:assignment_id', (req, res) => {
     if(!validateTurnInBody(req.body)) {
         res.status(400).json({
-            message: "Invalid parameters."
+            message: "Task turn-in for student "+ req.params.student+" failed.",
+            reason: "Invalid parameters in turn in body."
         });
         return;
     }
@@ -737,7 +738,8 @@ router.get('/turned_in/:student/:assignment_id/:type_id', (req, res) => {
 router.put('/second_chance/:student/:assignment_id', (req, res) => {
     if(!validateSecondChanceBody(req.body)) {
         res.status(400).json({
-            message: "Invalid data format."
+            message: "Using power-up second chance failed.",
+            reason: "Invalid data format."
         });
         return;
     }
@@ -934,7 +936,8 @@ router.get('/previousTask/points/get/:student/:assignment_id/:task_number', (req
     .catch( error => {
         console.log(error.stack);
         res.status(500).json({
-            message: "Internal database error."
+            message: "Fetching previous task points failed.",
+            reason: error
         });
     })    
 })
