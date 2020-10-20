@@ -494,7 +494,7 @@ const validateTurnInBody = (data) => {
     if(!!data) {
         let keys = Object.keys(data);
         return keys.includes('passed_tests') && keys.includes('total_tests') && (typeof data['passed_tests'] == 'number') 
-        && (typeof data['total_tests'] == 'number') && data['passed_tests']>0 && data['total_tests']>0 && data['passed_tests'] <= data['total_tests'];
+        && (typeof data['total_tests'] == 'number') && data['passed_tests']>=0 && data['total_tests']>=0 && data['passed_tests'] <= data['total_tests'];
     }
     return false;
 }

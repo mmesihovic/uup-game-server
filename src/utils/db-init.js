@@ -38,8 +38,6 @@ import {
     await client.query(populateTasksTable);
     await client.query(populatePowerupTypesTable);
     await client.query(populatePowerupsTable);
-    ///await client.query(populateStudentTasksTable);
-    //await client.query(populateCurrentTasksTable);
     await client.query(`UPDATE assignments SET active=true where name='Lesson 1';`);
     
     client.release();
