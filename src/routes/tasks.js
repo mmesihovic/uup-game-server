@@ -31,7 +31,7 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
         let amount = 0; 
         let reason;
         // We can write without operator, but code is more readable
-        let pointsCheck = points > assignmentChallengePoints - 0.05 ? true : false;
+        let pointsCheck = points >= assignmentChallengePoints ? true : false;
         let noPowerupsCheck = powerupsUsed == 0 ? true : false;
         let maxPointsCheck = Math.abs(points - assignmentMaxPoints) < 0.00001 ? true : false;
         if(maxPointsCheck && noPowerupsCheck) {
