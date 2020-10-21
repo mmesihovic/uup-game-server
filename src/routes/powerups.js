@@ -224,4 +224,39 @@ router.get('/hints/used/:student/:assignment_id/:task_number', (req,res) => {
     });
 })
 
+//Admin
+router.get('/tokens/set/:student/:amount', (req, res) => {
+    let student = req.params.student;
+    let amount = req.params.amount;
+    if(amount < 0) {
+        res.status(400).json({
+            message: "Setting tokens failed.",
+            reason: "Tokens amount must be greater or equal to zero."
+        });
+    }
+    (async () => {
+        let res = await connectionPool.query("SELECT amount FROM tokens WHERE student=$1", [student]);
+        if(res.rows.length > 0)
+            await connectionPool.query("UPDATE tokens SET amount=$1 WHERE student=$2;", [amount,student]);
+        else {
+            query = 'INSERT INTO tokens(student,amount) VALUES %L';
+            values = [ [student, amount ] ];
+            await connectionPool.query(format(query,values));
+        }
+    }).then( res => { 
+        res.status(200).json({
+            message: "Successfully set tokens to "+student+" to "+amount+".",
+            data: {
+                amount: amount
+            }
+        });
+    }).catch( error => {
+        console.log(error);
+        res.status(500).json({
+            message: "Setting tokens failed.",
+            reason: error
+        });
+    });
+}) 
+
 export default router;
