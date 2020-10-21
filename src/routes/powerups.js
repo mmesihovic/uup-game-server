@@ -235,15 +235,15 @@ router.get('/tokens/set/:student/:amount', (req, res) => {
         });
     }
     (async () => {
-        let res = await connectionPool.query("SELECT amount FROM tokens WHERE student=$1", [student]);
-        if(res.rows.length > 0)
+        let resp = await connectionPool.query("SELECT amount FROM tokens WHERE student=$1", [student]);
+        if(resp.rows.length > 0)
             await connectionPool.query("UPDATE tokens SET amount=$1 WHERE student=$2;", [amount,student]);
         else {
             let query = 'INSERT INTO tokens(student,amount) VALUES %L';
             let values = [ [student, amount ] ];
             await connectionPool.query(format(query,values));
         }
-    })().then( res => { 
+    })().then( data => { 
         res.status(200).json({
             message: "Successfully set tokens to "+student+" to "+amount+".",
             data: {
