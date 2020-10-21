@@ -475,7 +475,9 @@ const getTaskHint = async (student, assignment_id) => {
             //Return hint
             let hintQuery = 'SELECT hint FROM tasks WHERE id=$1;';
             res = await client.query(hintQuery, [currentTask_id]);
-            hint = res.rows[0].hint;
+            if(!res.rows[0].hint || res.rows[0].hint == "")
+                throw "No hint defined for this task.";
+            else hint = res.rows[0].hint;
         } catch(e) {
             throw e;
         } finally {
