@@ -108,14 +108,21 @@ const separateTasksByCategory = (data) => {
     return result;
 }
 
+const getTotalTasks = (taskCategoriesData) => {
+    let total = 0;
+    taskCategoriesData.forEach( x=> total += x.tasks_per_category );
+    return total;
+}
+
 const getTasks = async (assignment_id) => {
     let tasks = [];
     let doThings = async () => {
         let taskCategoriesData = await connectionPool.query("SELECT * from task_categories;");
         if(taskCategoriesData.rows.length == 0)
             throw "Task categories are not defined";
+        let totalTasks = getTotalTasks(taskCategoriesData.rows);
         let dbTasksData = await connectionPool.query("SELECT id, task_name, category_id from tasks WHERE assignment_id=$1", [assignment_id]);
-        if(dbTasksData.rows.length == 0)
+        if(dbTasksData.rows.length == 0 || dbTasksData.rows.length < totalTasks)
             throw "There are no tasks defined in given assignment";
         let tasksPerCategory = separateTasksByCategory(dbTasksData.rows);
         let __tasks = [];
