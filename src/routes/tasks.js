@@ -115,7 +115,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
         }
         newTask = await dbCall().catch(e => {
             //Just forwarding the exception, forcing the users of this function to implement error messages in request.\
-            console.log(e.stack);
+            console.log(e);
             throw e;
         } );
     } 
@@ -164,7 +164,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
         }
         newTask = await dbCall().catch(e => {
             //Just forwarding the exception, forcing the users of this function to implement error messages in request.\
-            console.log(e.stack);
+            console.log(e);
             throw e;
         } );
     }
@@ -198,7 +198,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             };
             newTask = await dbCall().catch(e => {
                  //Just forwarding the exception, forcing the users of this function to implement error messages in request.\
-            console.log(e.stack);
+            console.log(e);
             throw e;
             })
         }
@@ -424,7 +424,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
         } catch (e) {
             //If any of the queries fail, db is rolled back.
             await client.query('ROLLBACK');
-            console.log(e.stack);
+            console.log(e);
             throw "Internal database error.";
         } finally {
             client.release();
@@ -433,7 +433,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     }
     await dbCall().catch(e => {
         //Just forwarding the exception, forcing the users of this function to implement error messages in request.
-        console.log(e.stack);
+        console.log(e);
         throw e;
     });
     return returnObject;
@@ -486,7 +486,7 @@ const getTaskHint = async (student, assignment_id) => {
     }
     await dbCall()
     .catch(e=> {
-        console.log(e.stack);
+        console.log(e);
         throw e;
     });
     return hint;
