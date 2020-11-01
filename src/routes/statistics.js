@@ -41,7 +41,7 @@ const getStudentTasks = async (student) => {
     let _currentTasksData = await connectionPool.query(currentTaskQuery, [student]);
     let currentTasksData = _currentTasksData.rows;
     data.rows.forEach( (task) => {
-        let index = currentTasksData.findIndex( (x) => { x.assignment_id == task.assignment_id});
+        let index = currentTasksData.findIndex( (x) => { return x.assignment_id == task.assignment_id });
         tasksData.push({
             assignment_id: task.assignment_id,
             task_id: task.task_id,
