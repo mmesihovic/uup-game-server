@@ -131,6 +131,21 @@ router.get('/general', (req, res) => {
             reason: e
         });
     });
-});                                
+});              
+
+router.get('/tasks/:task_id', (req, res) => {
+    let task_id = req.params.task_id;
+    connectionPool.query('SELECT student FROM current_tasks WHERE task_id=$1', [task_id])
+    .then ( results => {
+        res.status(200).json(results.rows);
+    })
+    .catch( error => {
+        console.log(error);
+        res.status(500).json({
+            message: "Getting list of students for given task failed.",
+            reason: error
+        });
+    });
+});
 
 export default router;
