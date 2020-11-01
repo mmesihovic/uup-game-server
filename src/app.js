@@ -5,6 +5,8 @@ import indexRouter from './routes/index';
 import powerupsRouter from './routes/powerups';
 import tasksRouter from './routes/tasks';
 import assignmentsRouter from './routes/assignments';
+import statisticsRouter from './routes/statistics';
+
 
 var app = express();
 
@@ -16,6 +18,7 @@ app.use(cookieParser());
 indexRouter.use('/powerups/', powerupsRouter);
 indexRouter.use('/tasks/', tasksRouter);
 indexRouter.use('/assignments/', assignmentsRouter);
+indexRouter.use('/statistics/', statisticsRouter);
 
 app.use('/uup-game', indexRouter);
 
