@@ -106,10 +106,10 @@ router.get('/general', (req, res) => {
             })
             returnObject = {
                 players: playersData.rows.length > 0 ? playersData.rows[0].players : -1,
-                tokensInGame: tokensData.rows.length > 0 ? tokensData.rows[0].tokensInGame : -1,
-                powerupsInGame: powerupsData.rows.length,
-                usedPowerups: usedPowerups,
-                unusedPowerups: unusedPowerups,
+                tokensInGame: tokensData.rows.length > 0 ? tokensData.rows[0].tokensingame : -1,
+                powerUpsInGame: powerupsData.rows.length,
+                usedPowerUps: usedPowerups,
+                unusedPowerUps: unusedPowerups,
                 bestStudents: bestStudents
             };
         }
