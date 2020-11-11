@@ -6,7 +6,8 @@ router.get('/leaderboard', (req, res) => {
     let query = `SELECT student, sum(points) as points
                  FROM student_tasks
                  GROUP BY student
-                 ORDER BY points DESC;`
+                 ORDER BY points DESC
+                 LIMIT 50;`
     connectionPool.query(query)
     .then( results => {
         res.status(200).json(results.rows);
