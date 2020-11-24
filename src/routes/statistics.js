@@ -3,7 +3,7 @@ import { connectionPool } from '../utils/connection-pool';
 const router = express.Router();
 
 router.get('/leaderboard', (req, res) => {
-    let query = `SELECT student, sum(points) as points
+    let query = `SELECT student, COALESCE(sum(points),0) as points
                  FROM student_tasks
                  GROUP BY student
                  ORDER BY points DESC
