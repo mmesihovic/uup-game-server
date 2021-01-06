@@ -803,6 +803,56 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
      });
 });
 //Admin
+router.put('/force_second_chance/:student/:assignment_id/:task_id', (req, res) => {
+    let student = req.params.student;
+    let assignment_id = req.params.assignment_id;
+    let task_id = req.params.task_id;
+    let data;
+    let taskData = {
+        task_number : 0,
+        task_name : '',
+        previous_points: 0,
+    };
+    (async () => { 
+        const client = await connectionPool.connect();
+        try { 
+            await client.query("BEGIN");
+            //Get this task_id
+            let returnTaskQuery = 'SELECT task_number, task_name, points FROM student_tasks WHERE student = $1 AND assignment_id = $2 AND task_id=$3';
+            let results = await client.query(returnTaskQuery, [student, assignment_id, task_id]);
+            if(results.rows.length == 0)
+                throw "Task with given number and name hasn't been assigned to student in given assignment.";
+            let newTask_id = results.rows[0].task_id;
+            taskData.task_number = results.rows[0].task_number;
+            taskData.task_name = results.rows[0].task_name;
+            taskData.previous_points = results.rows[0].points;
+            // All validations are removed, student will be forced to return to this task 
+            // and will continue where he left off.
+            data = await replaceTasks('second-chance', student, assignment_id, 0, taskData);  
+            await client.query("COMMIT");
+        } catch(e) {
+            await client.query("ROLLBACK");
+            console.log(e);
+            throw e;
+        } finally {
+            client.release();
+        }
+        })()
+     .then(() => {
+        res.status(200).json({ 
+            message: "Student has been forced to return to given task. If assignment has not been completed, upon turning in task, he will continue where he left off.",
+            data: taskData
+        });
+     })
+     .catch(error => { 
+         res.status(500).json({ 
+             message: "Force Second Chance powerup failed.", 
+             reason: error
+         });
+     });
+});
+
+//Admin
 //Get task by ID
 router.get('/:id', (req, res) => {
     connectionPool.query("SELECT * from tasks WHERE id=$1", [req.params.id])
