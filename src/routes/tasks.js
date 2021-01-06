@@ -18,7 +18,7 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
                 amount: 0,
                 reason: "Student isn't finishing the assignment first time."
             }
-        let tasksDataQuery = 'SELECT points FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND turned_in=true;'; 
+        let tasksDataQuery = 'SELECT points FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND turned_in=true;';
         let tasksData = await client.query(tasksDataQuery, [student, assignment_id]);
         if(tasksData.rows.length == 0 )
             throw "Student hasn't completed any tasks in given assignment.";
@@ -28,7 +28,7 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
         let powerupsQuery = 'SELECT id FROM powerups WHERE student=$1 AND assignment_id=$2 AND used=true;';
         let powerupsData = await client.query(powerupsQuery, [student, assignment_id]);
         let powerupsUsed = powerupsData.rows.length;
-        let amount = 0; 
+        let amount = 0;
         let reason;
         // We can write without operator, but code is more readable
         let pointsCheck = points >= assignmentChallengePoints - 0.05 ? true : false;
@@ -58,7 +58,7 @@ const calculateAdditionalTokens = async (student, assignment_id, assignmentMaxPo
             reason: reason
         }
         return returnObject;
-        
+
     } catch(e) {
         console.log(e);
         throw e;
@@ -78,14 +78,14 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             try {
                 //Get current task ID and task_number
                 let res = await client.query(currentTaskQuery, currentTaskQueryValues);
-                if(res.rows.length == 0 ) throw "Student " + student + " doesn't have active task in given assignment"; 
+                if(res.rows.length == 0 ) throw "Student " + student + " doesn't have active task in given assignment";
 
                 let currentTask_id = res.rows[0].task_id;
                 //Get current task number, so we can select tasks which are after this one
                 /*
                 let currentTaskNumberQuery = 'SELECT task_number FROM student_tasks WHERE student = $1 and assignment_id = $2 and task_id = $3;';
                 let currentTaskNumberQueryValues = [ student, assignment_id, currentTask_id];
-                
+
                 res = await client.query(currentTaskNumberQuery, currentTaskNumberQueryValues);
                 */
                 let currentTaskNumber = res.rows[0].task_number;
@@ -118,7 +118,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             console.log(e);
             throw e;
         } );
-    } 
+    }
     else if(replacementType == 'swap') {
         let dbCall = async () => {
             const client = await connectionPool.connect();
@@ -143,7 +143,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             if(tasks.length == 0)
                 tasks = res.rows;
             let numberOfTasks = tasks.length;
-           
+
             let randomIndex = Math.floor(Math.random() * (numberOfTasks+1));
             if(randomIndex < 0)
                 randomIndex = 0;
@@ -154,13 +154,13 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                 name: tasks[randomIndex].task_name,
                 task_number: currentTask_number,
                 previous_task: currentTask_id
-            };   
+            };
             } catch(e) {
                 console.log(e);
                 throw "Getting next task process failed.";
             } finally {
                 client.release();
-            }      
+            }
         }
         newTask = await dbCall().catch(e => {
             //Just forwarding the exception, forcing the users of this function to implement error messages in request.\
@@ -180,7 +180,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                     res = await client.query(idQuery, idQueryValues);
                     if(res.rows.length == 0)
                         throw "There are no tasks with given parameters.";
-                    let oldTask_id = res.rows[0].task_id; 
+                    let oldTask_id = res.rows[0].task_id;
                     let checkChainCallingQuery = 'SELECT return_id FROM assignment_progress WHERE student=$1 AND assignment_id=$2;';
                     res = await client.query(checkChainCallingQuery, [student, assignment_id]);
                     let check = (res.rows.length > 0 && res.rows[0].return_id == -2)
@@ -219,9 +219,9 @@ const switchFiles = async (student, assignment_id, oldTask_id, newTask_id, redo)
             oldTask_id: oldTask_id,
             newTask_id: newTask_id,
             redo: redo
-        })                    
+        })
     });
-    let data = await result.json(); 
+    let data = await result.json();
     return data.success;
 }
 
@@ -260,7 +260,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
             }
         }
 
-    } catch(e) {        
+    } catch(e) {
         console.log(e);
         throw e;
     }
@@ -269,7 +269,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     let updateCurrentTasksQuery = `UPDATE current_tasks
                                    SET task_id = $1, task_name= $2, task_number=$3
                                    WHERE student=$4 and assignment_id = $5`;
-    let updateCurrentTasksQueryValues = [ newTask.id, newTask.name, newTask.task_number, student, assignment_id ];   
+    let updateCurrentTasksQueryValues = [ newTask.id, newTask.name, newTask.task_number, student, assignment_id ];
 
     if(replacementType == 'turn-in') {
         if(newTask.id == -1) {
@@ -277,7 +277,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                                        WHERE student = $1 and assignment_id = $2`;
             updateCurrentTasksQueryValues = currentTaskQueryValues;
             done = true;
-        }     
+        }
         // Izracunamo poene
         points = percent * maxPoints;
         updateStudentTasksQuery = `UPDATE student_tasks
@@ -289,9 +289,9 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
         updateStudentTasksQuery = `UPDATE student_tasks
                                    SET task_id = $1, task_name = $2, points = NULL, turned_in = FALSE, percent=NULL
                                    WHERE task_id = $3 AND student = $4 AND assignment_id = $5;`;
-        updateStudentTasksQueryValues = [ newTask.id, newTask.name, currentTask_id, student, assignment_id ]; 
+        updateStudentTasksQueryValues = [ newTask.id, newTask.name, currentTask_id, student, assignment_id ];
     }
-    
+
     let updateProgressQuery = `UPDATE assignment_progress SET status='Completed', virgin=false, return_id=-1 WHERE student=$1 AND assignment_id=$2;`;
 
     let checkChainCallingQuery = 'SELECT return_id FROM assignment_progress WHERE student=$1 AND assignment_id=$2;';
@@ -299,7 +299,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
     let dbCall = async () => {
         const client = await connectionPool.connect();
         try {
-            await client.query('BEGIN');    
+            await client.query('BEGIN');
             //Update current_task table
             if(newTask.previous_task == -2) {
                 let checkQuery = "SELECT task_name, task_number FROM current_tasks WHERE student=$1 and assignment_id=$2";
@@ -312,7 +312,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                     await client.query(updateCurrentTasksQuery, [ newTask.id, newTask.name, newTask.task_number, student, assignment_id ]);
                 }
             } else {
-                await client.query(updateCurrentTasksQuery, updateCurrentTasksQueryValues);    
+                await client.query(updateCurrentTasksQuery, updateCurrentTasksQueryValues);
             }
             let checkChainCall;
             if(replacementType == 'second-chance') {
@@ -327,7 +327,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                 // (user is warned on front-end that he needs to turn in task to save progress before using powerup again)
             }
             else {
-                //If turn-in, calculate tokens 
+                //If turn-in, calculate tokens
                 if(replacementType == 'turn-in') {
                     //Check if student is turning task in for first time, if he is then calculate and update tokens;
                     let firstTime = await client.query("SELECT turned_in FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND task_id=$3;",
@@ -364,14 +364,14 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
             }
 
             //If assignment is completed update the assignment_progress for student
-            if(done) { 
+            if(done) {
                 await client.query(updateProgressQuery, [ student, assignment_id ]);
                 //Samo pokupi iz student workspace-a u history
                 let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, -1, false);
                 if(!successfullFileSwitch)
                     throw "Switching files on file system failed.";
             } else {
-                //Switch files on filesystem           
+                //Switch files on filesystem
                 if(replacementType == 'turn-in') {
                     // IZ TABELE ASSIGNMENT_PROGRESS uzeti return_id i uporedit sa newTask id, ako se matchaju, onda iz taskHistory, ako ne onda iz uup-game
                     // ovdje onda treba dodati i ako se matchaju, da ga vrati na -1 u slucaju da on ponovo kasnije hoce powerup na istom assginmentu.
@@ -384,7 +384,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                         //pulling from task history
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
                         if(!successfullFileSwitch)
-                            throw "Switching files on file system failed."; 
+                            throw "Switching files on file system failed.";
                     } else {
                         //pulling from uup-game
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
@@ -399,13 +399,13 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                         throw "Switching files on file system failed.";
                 }
                 else if(replacementType == 'second-chance') {
-                    // Ovdje uvijek ide iz taskHistory 
+                    // Ovdje uvijek ide iz taskHistory
                     if(!checkChainCall) {
                         // ovdje gurnemo negativno jer ne treba cuvati u history
                         let successfullFileSwitch = await switchFiles(student, assignment_id, -1, newTask.id, true);
                         if(!successfullFileSwitch)
                             throw "Switching files on file system failed.";
-                        
+
                     } else {
                         let successfullFileSwitch = await switchFiles(student, assignment_id, newTask.previous_task, newTask.id, true);
                         if(!successfullFileSwitch)
@@ -437,7 +437,7 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
         throw e;
     });
     return returnObject;
-} 
+}
 
 const getTaskHint = async (student, assignment_id) => {
     var hint;
@@ -467,7 +467,7 @@ const getTaskHint = async (student, assignment_id) => {
             let check = await validatePowerupUse(student, 'Hint', assignment_id, currentTask_id, {}, currentTask_number);
             if(!check)
                 throw "Powerup validation failed. Student either doesn't have powerup of this type or has already used it on this task so it cannot be used again.";
-            let query = `UPDATE powerups SET used = TRUE, task_number = $1, task_id = $2, assignment_id = $3 
+            let query = `UPDATE powerups SET used = TRUE, task_number = $1, task_id = $2, assignment_id = $3
                 WHERE id = (SELECT id FROM powerups WHERE student = $4 AND type_id=$5 AND used=false LIMIT 1)`;
             let values = [ currentTask_number, currentTask_id, assignment_id, student, powerupType_id];
             //Update powerup to be used
@@ -495,7 +495,7 @@ const getTaskHint = async (student, assignment_id) => {
 const validateTurnInBody = (data) => {
     if(!!data) {
         let keys = Object.keys(data);
-        return keys.includes('passed_tests') && keys.includes('total_tests') && (typeof data['passed_tests'] == 'number') 
+        return keys.includes('passed_tests') && keys.includes('total_tests') && (typeof data['passed_tests'] == 'number')
         && (typeof data['total_tests'] == 'number') && data['passed_tests']>=0 && data['total_tests']>=0 && data['passed_tests'] <= data['total_tests'];
     }
     return false;
@@ -503,7 +503,7 @@ const validateTurnInBody = (data) => {
 
 const validatePowerupUse = async (student, powerupType, assignment_id, currentTask_id, data, currentTask_number) => {
     const client = await connectionPool.connect();
-    try {        
+    try {
         let typeIdQuery = "SELECT id FROM powerup_types WHERE name=$1";
         let results = await client.query(typeIdQuery, [powerupType]);
         //First check if student has specific powerup available
@@ -512,11 +512,11 @@ const validatePowerupUse = async (student, powerupType, assignment_id, currentTa
         let powerupType_id = results.rows[0].id;
         let hasPowerupQuery = 'SELECT id FROM powerups WHERE student = $1 AND type_id= $2 AND used=false;'
         results = await client.query(hasPowerupQuery, [student, powerupType_id] );
-       
+
         if(results.rows.length == 0)
             return false;
 
-        let usedPowerup = 'SELECT id FROM powerups WHERE student = $1 AND task_number=$5 AND task_id=$2 AND type_id=$3 AND assignment_id=$4 AND used=true;';   
+        let usedPowerup = 'SELECT id FROM powerups WHERE student = $1 AND task_number=$5 AND task_id=$2 AND type_id=$3 AND assignment_id=$4 AND used=true;';
         //Check if student has used this specific powerup on task before
         if(powerupType == 'Hint') {
             results = await client.query(usedPowerup, [student, currentTask_id, powerupType_id, assignment_id, currentTask_number]);
@@ -538,10 +538,10 @@ const validatePowerupUse = async (student, powerupType, assignment_id, currentTa
         }
         else if(powerupType == 'Switch Task') {
             let taskNumberQuery = 'SELECT task_number FROM student_tasks WHERE student=$1 AND assignment_id=$2 AND task_id=$3;'
-            results = await client.query(taskNumberQuery, [student, assignment_id, currentTask_id]);        
+            results = await client.query(taskNumberQuery, [student, assignment_id, currentTask_id]);
             if(results.rows.length == 0)
                 return false;
-            let taskNumber = results.rows[0].task_number; 
+            let taskNumber = results.rows[0].task_number;
             let usedQuery = 'SELECT id FROM powerups WHERE student = $1 AND used=true AND assignment_id=$2 AND task_number=$3 AND type_id=$4';
             results = await client.query(usedQuery, [student, assignment_id, taskNumber, powerupType_id]);
             if(results.rows.length != 0)
@@ -550,7 +550,7 @@ const validatePowerupUse = async (student, powerupType, assignment_id, currentTa
     } catch (e) {
         throw e;
     } finally {
-        client.release(); 
+        client.release();
     }
     return true;
 }
@@ -583,6 +583,28 @@ const validateCategoriesBody = (data) => {
     return false;
 }
 
+
+router.get('/students/:assignment_id/:task_id', (req,res) => {
+    let task_id = req.params.task_id;
+    let assignment_id = req.params.assignment_id;
+    let query = `SELECT student FROM current_tasks WHERE task_id=$1 and assignment_id=$2;`
+    connectionPool.query(query, [ task_id, assignment_id ])
+    .then( (results) => {
+        if(results.rows.length == 0)
+            res.status(400).json({ message: "Noone is at this task." });
+        else
+            res.status(200).json({
+                message: "Users doing this task currently",
+                data: results.rows});
+    })
+    .catch( error => {
+        res.status(500).json({
+            message: "Internal server error.",
+            reason: error
+        });
+    });
+});
+
 //All
 //Get students current task for given assignment ID
 router.get('/:student/current/:assignment_id', (req,res) => {
@@ -598,12 +620,12 @@ router.get('/:student/current/:assignment_id', (req,res) => {
                 message: "Current task for given assignment retrieved successfully.",
                 data: results.rows[0]});
     })
-    .catch( error => { 
-        res.status(500).json({ 
+    .catch( error => {
+        res.status(500).json({
             message: "Internal server error.",
             reason: error
-        }); 
-    }); 
+        });
+    });
 });
 //Student
 //Turn in task and yield next task in given assignment to users workspace
@@ -625,8 +647,8 @@ router.post('/turn_in/:student/:assignment_id', (req, res) => {
             message: "Current task for student " + student + " in given assignment has been been turned in successfully.",
             data: data
         });
-    }).catch(error => { 
-        res.status(500).json({ 
+    }).catch(error => {
+        res.status(500).json({
             message: "Task turning in process for student " + student + " failed.",
             reason: error
         });
@@ -638,7 +660,7 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
     let student = req.params.student;
     let assignment_id = req.params.assignment_id;
     let data;
-    (async () => { 
+    (async () => {
         const client = await connectionPool.connect();
         try {
             //Get current task
@@ -664,12 +686,12 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
             if(results.rows.length == 0)
                 throw "Cannot get task number";
             let task_number = results.rows[0].task_number;
-            //Use powerup  
-            let query = `UPDATE powerups SET used = TRUE, task_number = $1, assignment_id = $2 
+            //Use powerup
+            let query = `UPDATE powerups SET used = TRUE, task_number = $1, assignment_id = $2
                     WHERE id = (SELECT id FROM powerups WHERE student = $3 AND type_id=$4 AND used=FALSE LIMIT 1)`;
-            let values = [ task_number, assignment_id, student, powerupType_id]; 
-            await client.query(query, values); 
-            data = await replaceTasks('swap',student,assignment_id, 0, {}); 
+            let values = [ task_number, assignment_id, student, powerupType_id];
+            await client.query(query, values);
+            data = await replaceTasks('swap',student,assignment_id, 0, {});
             await client.query("COMMIT");
         } catch(e) {
             client.query("ROLLBACK;");
@@ -680,13 +702,13 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
         }
     })()
     .then(() => {
-        res.status(200).json({ 
+        res.status(200).json({
             message: "Current task for student " + student + " in given assignment has been swapped successfully.",
             data: data
         });
-    }).catch(error => { 
-        res.status(500).json({ 
-            message: "Task swapping process for student " + student + " failed.", 
+    }).catch(error => {
+        res.status(500).json({
+            message: "Task swapping process for student " + student + " failed.",
             reason: error
         });
     });
@@ -704,9 +726,9 @@ router.post('/hint/:student/:assignment_id', (req,res) => {
             message: "Hint for current task successfully retrieved.",
             hint: hint
         });
-    }).catch(error => { 
+    }).catch(error => {
         console.log(error.stack);
-        res.status(500).json({ 
+        res.status(500).json({
             message: "Hint retrieval process failed.",
             reason: error
         });
@@ -730,7 +752,7 @@ router.get('/turned_in/:student/:assignment_id/:type_id', (req, res) => {
     })
     .catch( error => {
         console.log(error.stack);
-        res.status(500).json({ 
+        res.status(500).json({
             message: "Internal database error.",
             error: error
         });
@@ -753,9 +775,9 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
         task_name : req.body.task_name,
         previous_points: 0,
     };
-    (async () => { 
+    (async () => {
         const client = await connectionPool.connect();
-        try { 
+        try {
             await client.query("BEGIN");
             //Get this task_id
             let returnTaskQuery = 'SELECT task_id, points FROM student_tasks WHERE student = $1 AND assignment_id = $2 AND task_number = $3 AND task_name = $4;';
@@ -773,13 +795,13 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
             //Validate if powerup can be used
             let check = await validatePowerupUse(student, 'Second Chance', assignment_id, -1, taskData);
             if(!check)
-                throw "Powerup validation failed. Student either doesn't have powerup of this type or has already used it on this task so it cannot be used again.";  
-            let query = `UPDATE powerups SET used = TRUE, task_number = $1, task_id = $2, assignment_id = $3 
+                throw "Powerup validation failed. Student either doesn't have powerup of this type or has already used it on this task so it cannot be used again.";
+            let query = `UPDATE powerups SET used = TRUE, task_number = $1, task_id = $2, assignment_id = $3
                     WHERE id = (SELECT id FROM powerups WHERE student = $4 AND type_id=$5 AND used=FALSE LIMIT 1)`;
-            let values = [ taskData.task_number, newTask_id, assignment_id, student, powerupType_id]; 
-            //Use powerup  
-            await client.query(query, values); 
-            data = await replaceTasks('second-chance', student, assignment_id, 0, taskData);  
+            let values = [ taskData.task_number, newTask_id, assignment_id, student, powerupType_id];
+            //Use powerup
+            await client.query(query, values);
+            data = await replaceTasks('second-chance', student, assignment_id, 0, taskData);
             await client.query("COMMIT");
         } catch(e) {
             await client.query("ROLLBACK");
@@ -790,14 +812,14 @@ router.put('/second_chance/:student/:assignment_id', (req, res) => {
         }
         })()
      .then(() => {
-        res.status(200).json({ 
+        res.status(200).json({
             message: "Student successfully used powerup second-chance and has been returned to wanted task.",
             data: taskData
         });
      })
-     .catch(error => { 
-         res.status(500).json({ 
-             message: "Second-chance powerup consumption failed.", 
+     .catch(error => {
+         res.status(500).json({
+             message: "Second-chance powerup consumption failed.",
              reason: error
          });
      });
@@ -903,11 +925,11 @@ router.delete('/:id', (req, res) => {
     })
     .catch(error => {
         console.log(error.stack);
-        res.status(500).json({ 
+        res.status(500).json({
             message: "Task deletion failed",
             reason: error,
         });
-    }); 
+    });
 });
 //Admin
 //Update task
@@ -918,7 +940,7 @@ router.put("/update/:id", (req, res) => {
         });
         return;
     }
-    connectionPool.query("UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4 WHERE id=$5;", 
+    connectionPool.query("UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4 WHERE id=$5;",
                 [req.body.task_name, req.body.assignment_id, req.body.category_id, req.body.hint, req.params.id])
         .then( results => {
             res.status(200).json({
@@ -957,7 +979,7 @@ router.put("/categories/update/:id", (req, res) => {
         });
         return;
     }
-    connectionPool.query(`UPDATE task_categories SET 
+    connectionPool.query(`UPDATE task_categories SET
                         name=$1,points_percent=$2,
                         tokens=$3, tasks_per_category=$4 WHERE id=$5;`,
                         [req.body.name, req.body.points_percent, req.body.tokens,
@@ -991,8 +1013,7 @@ router.get('/previousTask/points/get/:student/:assignment_id/:task_number', (req
             message: "Fetching previous task points failed.",
             reason: error
         });
-    })    
+    })
 })
 
 export default router;
-
