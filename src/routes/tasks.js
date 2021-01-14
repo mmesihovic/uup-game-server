@@ -713,6 +713,48 @@ router.post('/swap/:student/:assignment_id', (req,res) => {
         });
     });
 });
+//Admin
+//Swap current task for a new one in given assignment
+router.post('/force_swap/:student/:assignment_id', (req,res) => {
+    let student = req.params.student;
+    let assignment_id = req.params.assignment_id;
+    let data;
+    (async () => {
+        const client = await connectionPool.connect();
+        try {
+            //Get current task
+            client.query("BEGIN");
+            let currentTaskQuery = `SELECT task_id FROM current_tasks
+                                    WHERE student=$1 AND assignment_id=$2;`
+            let currentTaskQueryValues = [ student, assignment_id ];
+            let results = await client.query(currentTaskQuery, currentTaskQueryValues);
+            if(results.rows.length == 0)
+                throw "Student has no current tasks in given assignment.";
+            // All validations are removed, student will be forced to switch task
+            // and will continue where he left off.
+            data = await replaceTasks('swap',student,assignment_id, 0, {});
+            await client.query("COMMIT");
+        } catch(e) {
+            client.query("ROLLBACK;");
+            console.log(e);
+            throw e;
+        } finally {
+            client.release();
+        }
+    })()
+    .then(() => {
+        res.status(200).json({
+            message: "Current task for student " + student + " in given assignment has been swapped successfully.",
+            data: data
+        });
+    }).catch(error => {
+        res.status(500).json({
+            message: "Task swapping process for student " + student + " failed.",
+            reason: error
+        });
+    });
+});
+
 //Student
 //Yield a hint for current task student is working on
 router.post('/hint/:student/:assignment_id', (req,res) => {
