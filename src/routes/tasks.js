@@ -131,6 +131,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             let replacementTasksQuery = 'SELECT id, task_name FROM tasks WHERE assignment_id=$1 AND category_id=$2 AND id<>$3;';
             res = await client.query(replacementTasksQuery, [ assignment_id, category_id, currentTask_id ]);
             let tasks = res.rows;
+            let backup_tasks = res.rows;
             let tasksAssignedQuery = 'SELECT task_id as id, task_name FROM student_tasks WHERE student=$1 and assignment_id=$2;'
             res = await client.query(tasksAssignedQuery, [student, assignment_id]);
             if(res.rows.length > 0) {
@@ -141,7 +142,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
                 }
             }
             if(tasks.length == 0)
-                tasks = res.rows;
+                tasks = backup_tasks;
             let numberOfTasks = tasks.length;
 
             let randomIndex = Math.floor(Math.random() * (numberOfTasks+1));
