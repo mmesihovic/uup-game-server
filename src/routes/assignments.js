@@ -3,6 +3,7 @@ import { connectionPool } from '../utils/connection-pool';
 import format from 'pg-format';
 import fetch from 'node-fetch';
 import { challengeConfig } from '../utils/challenge-config';
+import { forbiddenTaskCombinations } from '../utils/tasksConfig';
 const router = express.Router();
 
 const validateAssignment = (data) => {
@@ -102,7 +103,7 @@ router.delete('/:assignment_id', (req,res) => {
 const separateTasksByCategory = (data) => {
     const result = {};
     for(const {id, task_name, category_id} of data) {
-    if(!result[category_id]) result[category_id] = [];
+        if(!result[category_id]) result[category_id] = [];
         result[category_id].push({id, task_name});
     }
     return result;
@@ -121,7 +122,7 @@ const getTasks = async (assignment_id) => {
         if(taskCategoriesData.rows.length == 0)
             throw "Task categories are not defined";
         let totalTasks = getTotalTasks(taskCategoriesData.rows);
-        let dbTasksData = await connectionPool.query("SELECT id, task_name, category_id from tasks WHERE assignment_id=$1", [assignment_id]);
+        let dbTasksData = await connectionPool.query("SELECT id, task_name, category_id from tasks WHERE assignment_id=$1 AND disabled=false", [assignment_id]);
         if(dbTasksData.rows.length == 0 || dbTasksData.rows.length < totalTasks)
             throw "There are no tasks defined in given assignment";
         let tasksPerCategory = separateTasksByCategory(dbTasksData.rows);
@@ -130,16 +131,25 @@ const getTasks = async (assignment_id) => {
             let category = taskCategoriesData.rows[i].id;
             let _tasks = tasksPerCategory[category];
             let number_of_tasks = taskCategoriesData.rows[i].tasks_per_category;
-            let indices = [];
-            while(indices.length<number_of_tasks) {
+            let selectedTasks = [];
+            while(selectedTasks.length<number_of_tasks) {
                 var index = Math.floor(Math.random() * (_tasks.length));
-                if(indices.indexOf(index) === -1) indices.push(index);
-            }
-            for(let j=0;j<indices.length;j++) {
+                const _id = _tasks[index].id;
+                selectedTasks.push(_tasks[index]);
                 __tasks.push( {
-                    "task_id": _tasks[ indices[j] ].id,
-                    "task_name": _tasks[ indices[j] ].task_name 
+                    "task_id": _tasks[ index ].id,
+                    "task_name": _tasks[ index ].task_name 
                 });
+                //Remove exclusive tasks from available tasks
+                const exclusiveTasksIds = forbiddenTaskCombinations[ _id ];
+                if (exclusiveTasksIds) {
+                    Object.keys(tasksPerCategory).forEach(category => { 
+                        tasksPerCategory[category] = tasksPerCategory[category].filter(task => !exclusiveTasksIds.includes(task.id));
+                    });
+                    _tasks = _tasks.filter(task => !exclusiveTasksIds.includes(task.id));
+                }
+                _tasks = _tasks.filter(task => task.id != _id);
+                
             }
         }
         return __tasks;
@@ -261,7 +271,7 @@ router.post('/:assignment_id/:student/start', (req,res) => {
 
             let successfullFileSwitch = await switchFiles(student, assignment_id, -1, tasks[0].task_id, false);
             if(!successfullFileSwitch)
-                throw "Switching files on file system failed.";
+            //    throw "Switching files on file system failed.";
             await client.query('COMMIT'); 
             let taskData = {
                 task_number: 1,

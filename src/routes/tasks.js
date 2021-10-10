@@ -3,6 +3,7 @@ import format from 'pg-format';
 import fetch from 'node-fetch';
 import { connectionPool } from '../utils/connection-pool';
 import { challengeConfig } from '../utils/challenge-config';
+import { forbiddenTaskCombinations } from '../utils/tasksConfig';
 
 const router = express.Router();
 
@@ -128,7 +129,7 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             let currentTask_number = res.rows[0].task_number;
             res = await client.query('SELECT category_id FROM tasks WHERE id=$1 AND assignment_id=$2;', [ currentTask_id, assignment_id ]);
             let category_id = res.rows[0].category_id;
-            let replacementTasksQuery = 'SELECT id, task_name FROM tasks WHERE assignment_id=$1 AND category_id=$2 AND id<>$3;';
+            let replacementTasksQuery = 'SELECT id, task_name FROM tasks WHERE assignment_id=$1 AND category_id=$2 AND id<>$3 AND disabled=false;';
             res = await client.query(replacementTasksQuery, [ assignment_id, category_id, currentTask_id ]);
             let tasks = res.rows;
             let backup_tasks = res.rows;
@@ -136,13 +137,28 @@ const getNextTask = async (replacementType, student, assignment_id, taskData) =>
             res = await client.query(tasksAssignedQuery, [student, assignment_id]);
             if(res.rows.length > 0) {
                 for(let i=0;i<res.rows.length;i++) {
+                    //Remove exclusive task ids
+                    const exclusiveTaskIds = forbiddenTaskCombinations[res.rows[i].id];
+                    if(exclusiveTaskIds) {
+                        exclusiveTaskIds.forEach(id => {
+                            const exclusiveIndex = tasks.findIndex( x => x.id == id);
+                            if (exclusiveIndex != -1) {
+                                tasks.splice(exclusiveIndex, 1);                            
+                            }
+                            const backupIndex = tasks.findIndex( x => x.id == id);
+                            if (exclusiveIndex != -1) {
+                                backup_tasks.splice(backupIndex, 1);
+                            }
+                        });
+                    }
                     let index = tasks.findIndex( x => x.id == res.rows[i].id);
                     if(index != -1)
                         tasks.splice(index, 1);
                 }
             }
-            if(tasks.length == 0)
+            if(tasks.length == 0) {
                 tasks = backup_tasks;
+            }
             let numberOfTasks = tasks.length;
 
             let randomIndex = Math.floor(Math.random() * (numberOfTasks+1));
@@ -384,13 +400,13 @@ const replaceTasks = async (replacementType, student, assignment_id, percent, ta
                         await client.query('UPDATE assignment_progress SET return_id=-1 WHERE student=$1 AND assignment_id=$2', [student,assignment_id]);
                         //pulling from task history
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, true);
-                        if(!successfullFileSwitch)
-                            throw "Switching files on file system failed.";
+                       if(!successfullFileSwitch)
+                           throw "Switching files on file system failed.";
                     } else {
                         //pulling from uup-game
                        let successfullFileSwitch = await switchFiles(student, assignment_id, currentTask_id, newTask.id, false);
-                        if(!successfullFileSwitch)
-                            throw "Switching files on file system failed.";
+                       if(!successfullFileSwitch)
+                           throw "Switching files on file system failed.";
                     }
                 }
                 else if(replacementType == 'swap') {
@@ -569,7 +585,7 @@ const validateTasksBody = (data) => {
         let keys = Object.keys(data);
         return keys.includes('task_name') && keys.includes('assignment_id') && keys.includes('category_id') && keys.includes('hint')
             && (typeof data['task_name'] == 'string') && (typeof data['assignment_id'] == 'number' && (typeof data['category_id'] == 'number')
-            && (typeof data['hint'] == 'string'));
+            && (typeof data['hint'] == 'string')) && typeof data['disabled'] == 'boolean';
     }
     return false;
 }
@@ -983,8 +999,8 @@ router.put("/update/:id", (req, res) => {
         });
         return;
     }
-    connectionPool.query("UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4 WHERE id=$5;",
-                [req.body.task_name, req.body.assignment_id, req.body.category_id, req.body.hint, req.params.id])
+    connectionPool.query("UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4, disabled=$5 WHERE id=$6;",
+                [req.body.task_name, req.body.assignment_id, req.body.category_id, req.body.hint, req.body.disabled, req.params.id])
         .then( results => {
             res.status(200).json({
                 message: "Task updated successfully.",
