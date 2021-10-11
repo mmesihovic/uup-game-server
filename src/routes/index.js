@@ -8,6 +8,31 @@ router.get('/challenge/config', (req, res) => {
     res.status(200).json(challengeConfig);
 })
 
+router.get('/reset-uup-game/:student', (req,res) => {
+    let student= req.params.student;
+    (async () => {
+        await connectionPool.query("DELETE FROM student_tasks WHERE student=$1;", [student]);
+        await connectionPool.query("DELETE FROM current_tasks WHERE student=$1;", [student]);
+        await connectionPool.query("DELETE FROM assignment_progress WHERE student=$1;", [student]);
+        await connectionPool.query(`DELETE FROM powerups WHERE student=$1;`, [student]);
+        await connectionPool.query(`DELETE FROM tokens WHERE student=$1;`, [student]);
+    })()
+    .then( () => {
+        res.status(200).json({
+            message: "UUP GAME has been successfully reset for student +"+student+".",
+            data: {}
+        })
+    })
+    .catch(error => {
+        console.log(error);
+        res.status(500).json({
+            message: "Resetting UUP GAME for student " + student + " failed.",
+            reason: error
+        })
+    });
+})
+
+
 //All
 router.get('/:student', (req, res) => {
     //Get all assignment progress
