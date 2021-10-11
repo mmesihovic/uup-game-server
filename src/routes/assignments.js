@@ -271,7 +271,7 @@ router.post('/:assignment_id/:student/start', (req,res) => {
 
             let successfullFileSwitch = await switchFiles(student, assignment_id, -1, tasks[0].task_id, false);
             if(!successfullFileSwitch)
-            //    throw "Switching files on file system failed.";
+                throw "Switching files on file system failed.";
             await client.query('COMMIT'); 
             let taskData = {
                 task_number: 1,
