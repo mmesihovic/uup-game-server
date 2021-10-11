@@ -30,8 +30,7 @@ router.get('/reset-uup-game/:student', (req,res) => {
             reason: error
         })
     });
-})
-
+});
 
 //All
 router.get('/:student', (req, res) => {
