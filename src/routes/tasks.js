@@ -583,9 +583,16 @@ const validateSecondChanceBody = (data) => {
 const validateTasksBody = (data) => {
     if(!!data) {
         let keys = Object.keys(data);
-        return keys.includes('task_name') && keys.includes('assignment_id') && keys.includes('category_id') && keys.includes('hint')
-            && (typeof data['task_name'] == 'string') && (typeof data['assignment_id'] == 'number' && (typeof data['category_id'] == 'number')
-            && (typeof data['hint'] == 'string')) && typeof data['disabled'] == 'boolean';
+        return keys.includes('task_name') && 
+            keys.includes('assignment_id') && 
+            keys.includes('category_id') && 
+            keys.includes('hint') && 
+            keys.includes('disabled') &&
+            (typeof data['task_name'] == 'string') && 
+            (typeof data['assignment_id'] == 'number') && 
+            (typeof data['category_id'] == 'number') &&
+            (typeof data['hint'] == 'string') &&
+            (typeof data['disabled'] == 'boolean');
     }
     return false;
 }
@@ -999,7 +1006,7 @@ router.put("/update/:id", (req, res) => {
         });
         return;
     }
-    connectionPool.query("UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4, disabled=$5 WHERE id=$6;",
+    connectionPool.query('UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4, disabled=$5 WHERE id=$5;',
                 [req.body.task_name, req.body.assignment_id, req.body.category_id, req.body.hint, req.body.disabled, req.params.id])
         .then( results => {
             res.status(200).json({
