@@ -1006,7 +1006,7 @@ router.put("/update/:id", (req, res) => {
         });
         return;
     }
-    connectionPool.query('UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4, disabled=$5 WHERE id=$5;',
+    connectionPool.query('UPDATE tasks SET task_name=$1, assignment_id=$2, category_id=$3, hint=$4, disabled=$5 WHERE id=$6;',
                 [req.body.task_name, req.body.assignment_id, req.body.category_id, req.body.hint, req.body.disabled, req.params.id])
         .then( results => {
             res.status(200).json({
